@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Calendar,
   Filter,
@@ -8,12 +8,17 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
+  Navigation,
+  RefreshCw,
+  Clock,
+  Zap,
 } from "lucide-react";
-import { cn, formatPrice, formatDuration } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import type { IBooking, IStation } from "@/types";
 import { format } from "date-fns";
+import { calculateArrivalStatus, formatArrivalTime, getUrgencyIcon } from "@/lib/arrivalStatus";
 
 type StatusFilter = "all" | "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
 
@@ -39,33 +44,106 @@ const statusVariantMap: Record<
   "no-show": "danger",
 };
 
+/**
+ * Real-time countdown timer for arrival status
+ */
+function RealtimeArrivalStatus({
+  booking,
+}: {
+  booking: IBooking;
+}) {
+  const [arrivalStatus, setArrivalStatus] = useState(
+    calculateArrivalStatus(
+      new Date(booking.createdAt),
+      booking.eta,
+      new Date(booking.startTime)
+    )
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setArrivalStatus(
+        calculateArrivalStatus(
+          new Date(booking.createdAt),
+          booking.eta,
+          new Date(booking.startTime)
+        )
+      );
+    }, 1000); // Update every second for smooth countdown
+
+    return () => clearInterval(interval);
+  }, [booking]);
+
+  if (!booking.eta) {
+    return <span className="text-xs text-muted-foreground">No location data</span>;
+  }
+
+  return (
+    <div className={cn("rounded-lg px-3 py-2", arrivalStatus.bgColor)}>
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{getUrgencyIcon(arrivalStatus.urgencyLevel)}</span>
+        <div>
+          <p className={cn("text-sm font-semibold", arrivalStatus.textColor)}>
+            {arrivalStatus.statusLabel}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Arrives at {formatArrivalTime(arrivalStatus.expectedArrivalTime)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {booking.eta.distanceKm} km away
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<IBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [refreshingEtaId, setRefreshingEtaId] = useState<string | null>(null);
+
+  const fetchBookings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/bookings");
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data.bookings ?? data ?? []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch bookings:", err);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchBookings() {
-      try {
-        const res = await fetch("/api/admin/bookings");
-        if (res.ok) {
-          const data = await res.json();
-          setBookings(data.bookings ?? data ?? []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch bookings:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchBookings();
-  }, []);
+    setLoading(false);
+
+    // Auto-refresh bookings every 5 minutes to refresh ETA
+    const interval = setInterval(fetchBookings, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchBookings]);
 
   const filteredBookings = useMemo(() => {
     if (statusFilter === "all") return bookings;
     return bookings.filter((b) => b.status === statusFilter);
   }, [bookings, statusFilter]);
+
+  // Pre-calculate arrival statuses for all bookings to avoid recalculation
+  const bookingArrivalStatuses = useMemo(() => {
+    return bookings.reduce((acc, booking) => {
+      if (booking.eta) {
+        acc[booking._id] = calculateArrivalStatus(
+          new Date(booking.createdAt),
+          booking.eta,
+          new Date(booking.startTime)
+        );
+      }
+      return acc;
+    }, {} as Record<string, ReturnType<typeof calculateArrivalStatus>>);
+  }, [bookings]);
 
   const updateBookingStatus = async (
     bookingId: string,
@@ -91,6 +169,31 @@ export default function AdminBookingsPage() {
       console.error("Failed to update booking:", err);
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const refreshETA = async (booking: IBooking) => {
+    if (!booking.userLocation) return;
+
+    setRefreshingEtaId(booking._id);
+    try {
+      const res = await fetch(`/api/bookings/${booking._id}/refresh-eta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userLocation: booking.userLocation }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBookings((prev) =>
+          prev.map((b) =>
+            b._id === booking._id ? { ...b, eta: data.booking.eta } : b
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to refresh ETA:", err);
+    } finally {
+      setRefreshingEtaId(null);
     }
   };
 
@@ -175,7 +278,7 @@ export default function AdminBookingsPage() {
                       Status
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                      Deposit
+                      Arrival Status
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
                       Actions
@@ -230,8 +333,28 @@ export default function AdminBookingsPage() {
                               booking.status.slice(1)}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {formatPrice(booking.deposit?.amount ?? 0)}
+                        <td className="px-4 py-3">
+                          {["pending", "confirmed"].includes(booking.status) ? (
+                            <div className="flex items-center gap-2">
+                              <RealtimeArrivalStatus booking={booking} />
+                              {booking.eta && (
+                                <button
+                                  onClick={() => refreshETA(booking)}
+                                  disabled={refreshingEtaId === booking._id}
+                                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                  title="Refresh ETA"
+                                >
+                                  {refreshingEtaId === booking._id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
@@ -296,6 +419,88 @@ export default function AdminBookingsPage() {
             </div>
           </div>
         )}
+
+        {/* Walk-in Availability Section */}
+        <div className="mt-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-semibold text-foreground">
+              Walk-in Availability
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Available ports for users arriving without reservations while waiting for bookings:
+          </p>
+          <div className="space-y-2 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(() => {
+                const delayedBookings = bookings.filter(b => {
+                  if (!["pending", "confirmed"].includes(b.status) || !b.eta) {
+                    return false;
+                  }
+                  const arrivalStatus = bookingArrivalStatuses[b._id];
+                  return arrivalStatus && arrivalStatus.isOverdue && Math.abs(arrivalStatus.minutesUntilArrival) > 15;
+                });
+
+                const urgentBookings = bookings.filter(b => {
+                  if (!["pending", "confirmed"].includes(b.status) || !b.eta) {
+                    return false;
+                  }
+                  const arrivalStatus = bookingArrivalStatuses[b._id];
+                  return arrivalStatus && (arrivalStatus.urgencyLevel === "urgent" || arrivalStatus.urgencyLevel === "approaching");
+                });
+
+                return (
+                  <>
+                    {delayedBookings.length > 0 && (
+                      <div className="rounded-lg bg-red-50 p-4 border border-red-200">
+                        <p className="text-sm font-semibold text-red-700 mb-2">
+                          🔺 Slots Available - Users Delayed ({delayedBookings.length})
+                        </p>
+                        <ul className="text-xs text-red-600 space-y-1">
+                          {delayedBookings.map(b => {
+                            const status = bookingArrivalStatuses[b._id];
+                            return (
+                              <li key={b._id}>
+                                {b.userName} - Delayed by{" "}
+                                {Math.round(Math.abs(status?.minutesUntilArrival ?? 0))}{" "}
+                                mins
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {urgentBookings.length > 0 && (
+                      <div className="rounded-lg bg-yellow-50 p-4 border border-yellow-200">
+                        <p className="text-sm font-semibold text-yellow-700 mb-2">
+                          🟡 Slots Reserved Soon - Arriving in 15 mins ({urgentBookings.length})
+                        </p>
+                        <ul className="text-xs text-yellow-600 space-y-1">
+                          {urgentBookings.map(b => {
+                            const status = bookingArrivalStatuses[b._id];
+                            return (
+                              <li key={b._id}>
+                                {b.userName} - Arrives in{" "}
+                                {Math.round(status?.minutesUntilArrival ?? 0)}{" "}
+                                mins
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {delayedBookings.length === 0 && urgentBookings.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No slots available for walk-ins. All reserved users are expected to arrive on time.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

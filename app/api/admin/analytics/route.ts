@@ -56,7 +56,6 @@ export async function GET(req: Request) {
         {
           $group: {
             _id: null,
-            totalDeposits: { $sum: "$deposit.amount" },
             count: { $sum: 1 },
           },
         },
@@ -86,7 +85,6 @@ export async function GET(req: Request) {
           $group: {
             _id: "$stationId",
             bookingCount: { $sum: 1 },
-            revenue: { $sum: "$deposit.amount" },
           },
         },
         { $sort: { bookingCount: -1 } },
@@ -120,10 +118,9 @@ export async function GET(req: Request) {
         {
           $group: {
             _id: {
-              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+              $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "UTC" },
             },
             count: { $sum: 1 },
-            revenue: { $sum: "$deposit.amount" },
           },
         },
         { $sort: { _id: 1 } },
@@ -163,7 +160,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         revenue: {
-          total: totalRevenue[0]?.totalDeposits || 0,
+          total: totalRevenue[0]?.count || 0,
           currency: "NPR",
           period: `${daysAgo} days`,
         },

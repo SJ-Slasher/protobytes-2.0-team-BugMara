@@ -9,7 +9,7 @@ import {
   Calendar,
   Clock,
   Zap,
-  CreditCard,
+  CheckCircle2,
   Loader2,
 } from "lucide-react";
 import { cn, formatPrice, getConnectorLabel, formatDuration } from "@/lib/utils";
@@ -42,6 +42,19 @@ export default function BookingPage({
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [selectedPortId, setSelectedPortId] = useState("");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Capture user location on mount for ETA calculation
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => {
+          console.warn("Geolocation permission denied or unavailable:", err.message);
+        }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     params.then((p) => setStationId(p.stationId));
@@ -68,8 +81,6 @@ export default function BookingPage({
 
   const availablePorts =
     station?.chargingPorts?.filter((p) => p.status === "available") ?? [];
-
-  const depositAmount = station?.pricing?.depositAmount ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,11 +109,15 @@ export default function BookingPage({
       const bookingH = bookingTime.getHours();
       const bookingM = bookingTime.getMinutes();
       const bookingMinutes = bookingH * 60 + bookingM;
+      const endTime = new Date(bookingTime.getTime() + selectedDuration * 60 * 1000);
+      const endH = endTime.getHours();
+      const endM = endTime.getMinutes();
+      const endMinutes = endH * 60 + endM;
       const openMinutes = openH * 60 + openM;
       const closeMinutes = closeH * 60 + closeM;
-      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+      if (bookingMinutes < openMinutes || endMinutes > closeMinutes) {
         setError(
-          `Station operates between ${station.operatingHours.open} and ${station.operatingHours.close}. Please select a valid time.`
+          `Station operates between ${station.operatingHours.open} and ${station.operatingHours.close}. Your booking must start and end within these hours.`
         );
         return;
       }
@@ -128,13 +143,13 @@ export default function BookingPage({
       if (!checkRes.ok) {
         const checkData = await checkRes.json();
         setError(
-          checkData.message || "Selected time slot is not available."
+          checkData.error || checkData.message || "Selected time slot is not available."
         );
         setSubmitting(false);
         return;
       }
 
-      // Create booking via Khalti payment
+      // Create booking and initiate Khalti payment
       const payRes = await fetch("/api/payments/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,25 +159,29 @@ export default function BookingPage({
           portId: selectedPortId,
           startTime,
           estimatedDuration: selectedDuration,
+          ...(userLocation && { userLocation }),
         }),
       });
 
       if (!payRes.ok) {
         if (payRes.status === 401) {
-          // Session expired — redirect to sign-in and come back
           window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
           return;
         }
         const payData = await payRes.json().catch(() => ({}));
-        setError(payData.error || `Payment request failed (${payRes.status}). Please try again.`);
+        setError(payData.error || `Booking failed (${payRes.status}). Please try again.`);
         setSubmitting(false);
         return;
       }
 
       const payData = await payRes.json();
-
-      // Redirect user to Khalti payment page
-      window.location.href = payData.payment_url;
+      // Redirect to Khalti payment page
+      if (payData.payment_url) {
+        window.location.href = payData.payment_url;
+      } else {
+        setError("Failed to get payment URL. Please try again.");
+        setSubmitting(false);
+      }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       setSubmitting(false);
@@ -231,9 +250,6 @@ export default function BookingPage({
             <div className="mt-3 flex items-center gap-4">
               <Badge variant="info">
                 {formatPrice(station.pricing.perHour)}/hr
-              </Badge>
-              <Badge variant="default">
-                Deposit: {formatPrice(station.pricing.depositAmount)}
               </Badge>
             </div>
           )}
@@ -307,60 +323,75 @@ export default function BookingPage({
               <Zap className="h-5 w-5 text-primary" />
               Select Charging Port
               <span className="text-sm font-normal text-muted-foreground">
-                ({availablePorts.length} available)
+                ({availablePorts.length} available of {station.chargingPorts?.length ?? 0})
               </span>
             </h3>
 
+            {availablePorts.length === 0 && (
+              <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-4">
+                <p className="text-sm text-amber-900">
+                  No ports currently available. All charging ports are booked or under maintenance.
+                </p>
+              </div>
+            )}
+
             {station.chargingPorts && station.chargingPorts.length > 0 ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {station.chargingPorts.map((port) => {
-                  const portId = String(port._id || port.portNumber);
+                {station.chargingPorts.map((port, index) => {
+                  const portId = String(port._id ?? port.portNumber ?? `port-${index}`);
                   const isAvailable = port.status === "available";
                   const isSelected = selectedPortId === portId;
+                  const statusLabel = port.status === "reserved" ? "Reserved" :
+                                     port.status === "in-use" ? "In Use" :
+                                     port.status === "maintenance" ? "Maintenance" :
+                                     port.status === "disabled" ? "Disabled" :
+                                     port.status;
 
                   return (
-                    <div
+                    <button
                       key={portId}
-                      role="button"
-                      tabIndex={isAvailable ? 0 : -1}
+                      type="button"
+                      disabled={!isAvailable}
+                      data-port-id={portId}
+                      style={{ position: "relative" }}
+                      className={cn(
+                        "rounded-lg border p-4 text-left transition-all",
+                        isAvailable
+                          ? "cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-95"
+                          : "cursor-not-allowed",
+                        isSelected
+                          ? "border-primary bg-primary/10 ring-2 ring-primary"
+                          : isAvailable
+                          ? "border-border bg-card hover:bg-muted/50"
+                          : "border-border/30 bg-muted/30"
+                      )}
                       onClick={() => {
                         if (isAvailable) {
                           setSelectedPortId(portId);
                         }
                       }}
-                      onKeyDown={(e) => {
-                        if ((e.key === "Enter" || e.key === " ") && isAvailable) {
-                          e.preventDefault();
-                          setSelectedPortId(portId);
-                        }
-                      }}
-                      className={cn(
-                        "rounded-lg border p-4 text-left transition-all",
-                        isAvailable
-                          ? "cursor-pointer hover:border-primary/50 hover:shadow-md"
-                          : "cursor-not-allowed opacity-50",
-                        isSelected
-                          ? "border-primary bg-primary/10 ring-2 ring-primary"
-                          : "border-border bg-card"
-                      )}
+                      title={isAvailable ? "Select this port" : `Port ${port.portNumber} is ${statusLabel}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div
                             className={cn(
                               "flex h-8 w-8 items-center justify-center rounded-lg",
-                              isAvailable ? "bg-green-100" : "bg-gray-100"
+                              isAvailable ? "bg-green-100" : "bg-gray-200"
                             )}
                           >
                             <Zap
                               className={cn(
                                 "h-4 w-4",
-                                isAvailable ? "text-green-600" : "text-gray-500"
+                                isAvailable ? "text-green-600" : "text-gray-400"
                               )}
                             />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-card-foreground">
+                            <p className={cn(
+                              "text-sm font-medium",
+                              isAvailable ? "text-card-foreground" : "text-muted-foreground/70"
+                            )}>
                               Port {port.portNumber}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -369,7 +400,7 @@ export default function BookingPage({
                           </div>
                         </div>
                         <Badge variant={isAvailable ? "success" : "default"}>
-                          {isAvailable ? "Available" : port.status}
+                          {statusLabel}
                         </Badge>
                       </div>
                       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
@@ -386,11 +417,12 @@ export default function BookingPage({
                         )}
                       </div>
                       {isSelected && (
-                        <div className="mt-2 text-xs font-medium text-primary">
-                          ✓ Selected
+                        <div className="mt-2 text-xs font-medium text-primary flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Selected
                         </div>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -401,34 +433,19 @@ export default function BookingPage({
             )}
           </div>
 
-          {/* Deposit Summary */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-foreground">
-                  Deposit Amount
-                </span>
-              </div>
-              <span className="text-2xl font-bold text-primary">
-                {formatPrice(depositAmount)}
-              </span>
-            </div>
-            {station?.pricing?.perHour > 0 && selectedDuration > 0 && (
-              <div className="mt-3 flex items-center justify-between border-t border-primary/10 pt-3">
+          {/* Cost Estimate */}
+          {station?.pricing?.perHour > 0 && selectedDuration > 0 && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   Estimated charging cost ({formatDuration(selectedDuration)})
                 </span>
-                <span className="text-sm font-semibold text-foreground">
+                <span className="text-lg font-bold text-primary">
                   {formatPrice(station.pricing.perHour * (selectedDuration / 60))}
                 </span>
               </div>
-            )}
-            <p className="mt-2 text-xs text-muted-foreground">
-              This deposit will be refunded if you cancel before your booking
-              starts.
-            </p>
-          </div>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -455,8 +472,8 @@ export default function BookingPage({
               </>
             ) : (
               <>
-                <CreditCard className="h-4 w-4" />
-                Confirm & Pay Deposit
+                <CheckCircle2 className="h-4 w-4" />
+                Confirm & Pay
               </>
             )}
           </button>

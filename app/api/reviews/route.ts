@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import Review from "@/lib/models/Review";
 import Station from "@/lib/models/Station";
+import { loadStationFromFile } from "@/lib/stations";
 import Booking from "@/lib/models/Booking";
 import User from "@/lib/models/User";
 
@@ -89,7 +90,9 @@ export async function POST(req: Request) {
     // Enforce comment length
     const trimmedComment = (comment || "").trim().slice(0, 500);
 
-    const station = await Station.findById(stationId);
+    const station = stationId.startsWith("station-")
+      ? loadStationFromFile(stationId)
+      : await Station.findById(stationId);
     if (!station) {
       return NextResponse.json(
         { error: "Station not found" },
@@ -140,14 +143,17 @@ export async function POST(req: Request) {
 
     // Use aggregation pipeline for efficient average calculation
     const [stats] = await Review.aggregate([
-      { $match: { stationId: station._id } },
+      { $match: { stationId } },
       { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
     ]);
 
-    await Station.findByIdAndUpdate(stationId, {
-      rating: stats ? Math.round(stats.avg * 10) / 10 : numericRating,
-      totalReviews: stats?.count ?? 1,
-    });
+    // Only update rating on DB-backed stations
+    if (!stationId.startsWith("station-")) {
+      await Station.findByIdAndUpdate(stationId, {
+        rating: stats ? Math.round(stats.avg * 10) / 10 : numericRating,
+        totalReviews: stats?.count ?? 1,
+      });
+    }
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {

@@ -57,7 +57,6 @@ const StationSchema = new mongoose.Schema(
     chargingPorts: [ChargingPortSchema],
     pricing: {
       perHour: Number,
-      depositAmount: Number,
     },
     amenities: [String],
     photos: [String],
@@ -129,7 +128,6 @@ async function seed() {
       chargingPorts: ports,
       pricing: {
         perHour: 150,
-        depositAmount: 500,
       },
       amenities: s.amenities || [],
       photos: [],

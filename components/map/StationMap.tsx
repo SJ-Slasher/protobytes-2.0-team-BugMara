@@ -341,15 +341,20 @@ export function StationMap({
       render(_gl: WebGLRenderingContext, matrix: number[]) {
         const t = performance.now() * 0.001;
         const currentZoom = map.getZoom();
+
+        // Use an exponential scale that keeps models visible at all zoom levels
+        // At zoom 15 → factor = 1, zoom 7 → factor = 256, zoom 20 → factor = 0.03
         const zoomFactor = Math.pow(2, 15 - currentZoom);
+        // Clamp so models don't vanish when zoomed in or become absurd when zoomed out
+        const clampedFactor = Math.max(0.05, Math.min(zoomFactor, 512));
 
         allModels.forEach((m, i) => {
           const base = m.userData?.baseScale ?? 30;
-          const s = base * zoomFactor;
+          const s = base * clampedFactor;
           m.scale.set(s, s, s);
 
           if (m.userData?.type === "station") {
-            m.position.z = Math.sin(t * 0.5 + i * 1.8) * 2 * zoomFactor;
+            m.position.z = Math.sin(t * 0.5 + i * 1.8) * 2 * clampedFactor;
           }
           if (m.userData?.type === "car") {
             m.position.z = 0;
@@ -378,10 +383,22 @@ export function StationMap({
     try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch { /* */ }
     map.addLayer(customLayer as any);
 
+    // Re-add layer if Mapbox Standard style reloads (zoom/pitch can trigger this)
+    const handleStyleData = () => {
+      if (disposed) return;
+      try {
+        if (!map.getLayer(LAYER_ID)) {
+          map.addLayer(customLayer as any);
+        }
+      } catch { /* layer may already exist */ }
+    };
+    map.on("styledata", handleStyleData);
+
     return () => {
       disposed = true;
       carModelRef.current = null;
       sceneRefData.current = null;
+      map.off("styledata", handleStyleData);
       try { if (map.getStyle() && map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch { /* */ }
       allModels.forEach((m) =>
         m.traverse((child) => {

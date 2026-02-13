@@ -31,7 +31,6 @@ export interface IStationDocument extends Document {
   chargingPorts: IChargingPort[];
   pricing: {
     perHour: number;
-    depositAmount: number;
   };
   amenities: string[];
   photos: string[];
@@ -77,7 +76,6 @@ const StationSchema = new Schema<IStationDocument>(
     chargingPorts: [ChargingPortSchema],
     pricing: {
       perHour: { type: Number, default: 0 },
-      depositAmount: { type: Number, default: 500 },
     },
     amenities: [{ type: String }],
     photos: [{ type: String }],

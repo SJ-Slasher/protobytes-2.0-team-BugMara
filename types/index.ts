@@ -38,7 +38,6 @@ export interface IStation {
   chargingPorts: ChargingPort[];
   pricing: {
     perHour: number;
-    depositAmount: number;
   };
   amenities: string[];
   photos: string[];
@@ -60,12 +59,6 @@ export interface IBooking {
   estimatedDuration: number;
   endTime: string;
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
-  deposit: {
-    amount: number;
-    khaltiPidx?: string;
-    khaltiTransactionId?: string;
-    refunded: boolean;
-  };
   qrCode?: string;
   userLocation?: {
     lat: number;

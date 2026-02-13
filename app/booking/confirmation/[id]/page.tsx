@@ -50,45 +50,23 @@ export default function BookingConfirmationPage({
   const [bookingId, setBookingId] = useState("");
   const [booking, setBooking] = useState<IBooking | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     params.then((p) => setBookingId(p.id));
   }, [params]);
 
-  // Verify Khalti payment when redirected back with pidx
+  // Verify Khalti payment if pidx is present in URL
   useEffect(() => {
     if (!bookingId) return;
     const pidx = searchParams.get("pidx");
-    const status = searchParams.get("status");
-
-    if (!pidx) return; // No Khalti callback — normal page load
-
-    if (status === "User canceled") {
-      setPaymentError("Payment was cancelled. Your booking is still pending.");
-      // Still fetch the booking to show details
-      fetchBookingDetails();
-      return;
-    }
-
-    async function fetchBookingDetails() {
-      try {
-        const res = await fetch(`/api/bookings/${bookingId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setBooking(data.booking ?? data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch booking:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
+    if (!pidx) return;
 
     async function verifyPayment() {
       setVerifying(true);
+      setPaymentError("");
       try {
         const res = await fetch("/api/payments/verify", {
           method: "POST",
@@ -96,40 +74,43 @@ export default function BookingConfirmationPage({
           body: JSON.stringify({ pidx, bookingId }),
         });
         const data = await res.json();
-        if (data.verified && data.booking) {
-          setBooking(data.booking);
+
+        if (res.ok && data.verified) {
+          // Payment verified — refresh booking data
+          const bookingRes = await fetch(`/api/bookings/${bookingId}`);
+          if (bookingRes.ok) {
+            const bookingData = await bookingRes.json();
+            setBooking(bookingData.booking ?? bookingData);
+          }
         } else if (data.status === "User canceled" || data.status === "Expired") {
-          setPaymentError(
-            `Payment ${data.status === "Expired" ? "expired" : "was cancelled"}. Please try again.`
-          );
-          // Fetch booking to show current status
-          await fetchBookingDetails();
-        } else if (data.status === "Pending" || data.status === "Initiated") {
-          setPaymentError("Payment is still processing. Please refresh in a moment.");
-          await fetchBookingDetails();
+          setPaymentError("Payment was cancelled or expired. Your booking has been cancelled.");
+          // Refresh booking to show cancelled status
+          const bookingRes = await fetch(`/api/bookings/${bookingId}`);
+          if (bookingRes.ok) {
+            const bookingData = await bookingRes.json();
+            setBooking(bookingData.booking ?? bookingData);
+          }
+        } else if (!res.ok) {
+          setPaymentError(data.error || "Payment verification failed.");
         } else {
-          await fetchBookingDetails();
+          setPaymentError("Payment is still being processed. Please wait and refresh.");
         }
       } catch (err) {
-        console.error("Payment verification failed:", err);
+        console.error("Payment verification error:", err);
         setPaymentError("Failed to verify payment. Please contact support.");
-        await fetchBookingDetails();
       } finally {
         setVerifying(false);
         setLoading(false);
       }
     }
-
     verifyPayment();
   }, [bookingId, searchParams]);
 
-  // Fetch booking — skip if payment verification is in progress (it will set booking)
+  // Fetch booking details (skip if Khalti verification is handling it)
   useEffect(() => {
     if (!bookingId) return;
-
-    // If there's a pidx in the URL, the verify effect handles fetching
     const pidx = searchParams.get("pidx");
-    if (pidx) return;
+    if (pidx) return; // verification useEffect handles fetching
 
     async function fetchBooking() {
       try {
@@ -145,7 +126,48 @@ export default function BookingConfirmationPage({
       }
     }
     fetchBooking();
-  }, [bookingId, searchParams]);
+  }, [bookingId]);
+
+  // Live ETA tracking — periodically send user location to update ETA for station admin
+  useEffect(() => {
+    if (!booking) return;
+    // Only track for active bookings (pending/confirmed)
+    if (!["pending", "confirmed"].includes(booking.status)) return;
+    if (!navigator.geolocation) return;
+
+    let watchId: number;
+    let lastUpdate = 0;
+    const MIN_INTERVAL = 30_000; // update at most every 30 seconds
+
+    const updateEta = (lat: number, lng: number) => {
+      const now = Date.now();
+      if (now - lastUpdate < MIN_INTERVAL) return;
+      lastUpdate = now;
+
+      fetch(`/api/bookings/${booking._id}/eta`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.eta) {
+            setBooking((prev) => prev ? { ...prev, eta: data.eta } : prev);
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to update ETA:", err);
+        });
+    };
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => updateEta(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 20_000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [booking?._id, booking?.status]);
 
   const handleCancel = async () => {
     if (!booking) return;
@@ -210,6 +232,12 @@ export default function BookingConfirmationPage({
     typeof booking.stationId === "object"
       ? (booking.stationId as IStation)
       : null;
+
+  // Get port details from station
+  const portDetails = station?.chargingPorts?.find(
+    (p) => String(p._id) === String(booking.portId) || String(p.portNumber) === String(booking.portId)
+  );
+
   const statusVariant = statusVariantMap[booking.status] || "default";
   const canCancel =
     booking.status === "pending" || booking.status === "confirmed";
@@ -225,6 +253,13 @@ export default function BookingConfirmationPage({
           <ArrowLeft className="h-4 w-4" />
           My Bookings
         </Link>
+
+        {/* Payment Error Banner */}
+        {paymentError && (
+          <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+            {paymentError}
+          </div>
+        )}
 
         {/* Confirmation Header */}
         <div className="text-center">
@@ -265,13 +300,6 @@ export default function BookingConfirmationPage({
             {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
           </Badge>
         </div>
-
-        {/* Payment error banner */}
-        {paymentError && (
-          <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-center text-sm text-red-400">
-            {paymentError}
-          </div>
-        )}
 
         {/* Booking Details */}
         <div className="mt-8 rounded-xl border border-border bg-card p-6">
@@ -322,12 +350,80 @@ export default function BookingConfirmationPage({
             {/* Port */}
             <div className="flex items-start gap-3">
               <Zap className="mt-0.5 h-5 w-5 text-muted-foreground" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">
-                  Port: {booking.portId}
+                  Charging Port
                 </p>
+                <div className="mt-2 rounded-lg bg-muted/50 p-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Port Number</p>
+                      <p className="font-medium text-foreground">
+                        {portDetails?.portNumber || booking.portId}
+                      </p>
+                    </div>
+                    {portDetails?.connectorType && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Connector</p>
+                        <p className="font-medium text-foreground">
+                          {portDetails.connectorType}
+                        </p>
+                      </div>
+                    )}
+                    {portDetails?.powerOutput && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Power Output</p>
+                        <p className="font-medium text-foreground">
+                          {portDetails.powerOutput}
+                        </p>
+                      </div>
+                    )}
+                    {portDetails?.chargerType && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Charger Type</p>
+                        <p className="font-medium text-foreground">
+                          {portDetails.chargerType}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Charging Cost */}
+            {station?.pricing?.perHour && (
+              <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">
+                    Charging Cost
+                  </span>
+                  <span className="text-lg font-bold text-primary">
+                    {formatPrice(station.pricing.perHour * (booking.estimatedDuration / 60))}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatPrice(station.pricing.perHour)}/hr × {formatDuration(booking.estimatedDuration)}
+                </p>
+              </div>
+            )}
+
+            {/* ETA to Station */}
+            {booking.eta && ["pending", "confirmed"].includes(booking.status) && (
+              <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">
+                    ETA to Station
+                  </span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {booking.eta.durationMinutes} min
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {booking.eta.distanceKm} km away · Updated {format(new Date(booking.eta.updatedAt), "h:mm a")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -350,23 +446,6 @@ export default function BookingConfirmationPage({
             </div>
           </div>
         )}
-
-        {/* Deposit */}
-        <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-foreground">
-              Deposit Amount
-            </span>
-            <span className="text-xl font-bold text-primary">
-              {formatPrice(booking.deposit?.amount ?? 0)}
-            </span>
-          </div>
-          {booking.deposit?.refunded && (
-            <p className="mt-2 text-sm text-green-600">
-              Deposit has been refunded.
-            </p>
-          )}
-        </div>
 
         {/* Review Section - show for completed bookings */}
         {booking.status === "completed" && (

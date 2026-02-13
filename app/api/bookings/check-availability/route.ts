@@ -59,9 +59,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Port not found" }, { status: 404 });
     }
 
-    if (port.status === "maintenance") {
+    // Check port status - only "available" ports can be booked
+    const unavailableStatuses = ["maintenance", "disabled", "reserved", "in-use"];
+    if (unavailableStatuses.includes(port.status)) {
+      const statusLabels: Record<string, string> = {
+        maintenance: "Port is under maintenance",
+        disabled: "Port is disabled",
+        reserved: "Port is already reserved",
+        "in-use": "Port is currently in use",
+      };
       return NextResponse.json(
-        { available: false, reason: "Port is under maintenance" },
+        {
+          available: false,
+          reason: statusLabels[port.status] || `Port is ${port.status}`,
+          portStatus: port.status,
+        },
         { status: 200 }
       );
     }
@@ -94,7 +106,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const pricing = station.pricing as { perHour: number; depositAmount: number };
+    const pricing = station.pricing as { perHour: number };
 
     return NextResponse.json(
       {
@@ -113,7 +125,6 @@ export async function POST(req: Request) {
         estimatedCost: {
           perHour: pricing.perHour,
           total: pricing.perHour * durationHours,
-          deposit: pricing.depositAmount,
           currency: "NPR",
         },
       },

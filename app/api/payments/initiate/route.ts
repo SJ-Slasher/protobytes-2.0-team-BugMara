@@ -6,8 +6,10 @@ import User from "@/lib/models/User";
 import Booking from "@/lib/models/Booking";
 import { khaltiInitiate } from "@/lib/khalti";
 import { loadStationFromFile } from "@/lib/stations";
-import { calculateETA, getStationCoordinates } from "@/lib/eta";
+import { calculateETA } from "@/lib/eta";
 import QRCode from "qrcode";
+import type { IStationDocument } from "@/lib/models/Station";
+import mongoose from "mongoose";
 
 export async function POST(req: Request) {
   try {
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
     }
 
     const isFileBased = stationId.startsWith("station-");
-    let station: any;
+    let station: IStationDocument | Record<string, unknown> | null = null;
 
     if (isFileBased) {
       station = loadStationFromFile(stationId);
@@ -69,57 +71,93 @@ export async function POST(req: Request) {
       );
     }
 
-    const port = station.chargingPorts.find(
-      (p: any) => String(p._id) === portId
+    const port = station.chargingPorts?.find(
+      (p: any) => String(p._id || p.portNumber) === portId
     );
     if (!port) {
       return NextResponse.json({ error: "Port not found" }, { status: 404 });
     }
 
-    const depositAmountNPR = station.pricing.depositAmount;
-    const depositAmountPaisa = Math.round(depositAmountNPR * 100);
+    // Normalize portId to the canonical _id so overlap checks are consistent
+    const canonicalPortId = String(port._id || port.portNumber || portId);
+
+    const perHourNPR = station.pricing?.perHour ?? 200;
+    const durationMinutes = Number(estimatedDuration);
+    const totalAmountNPR = Math.round(perHourNPR * (durationMinutes / 60));
+    const totalAmountPaisa = Math.round(totalAmountNPR * 100);
 
     // Create a pending booking first so we have a bookingId for the return URL
-    const durationMinutes = Number(estimatedDuration);
+    // Use transactions to prevent race conditions on concurrent booking requests
     const start = new Date(startTime);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
-    // Check for overlapping bookings
-    const overlapping = await Booking.findOne({
-      stationId,
-      portId,
-      status: { $in: ["pending", "confirmed", "active"] },
-      $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
-    });
+    // Start a session for transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (overlapping) {
-      return NextResponse.json(
-        { error: "Time slot is not available for this port" },
-        { status: 409 }
+    let booking;
+    try {
+      // Check for overlapping bookings within the transaction
+      const overlapping = await Booking.findOne({
+        stationId,
+        portId: canonicalPortId,
+        status: { $in: ["pending", "confirmed", "active"] },
+        $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
+      }).session(session);
+
+      if (overlapping) {
+        await session.abortTransaction();
+        session.endSession();
+        return NextResponse.json(
+          { error: "Time slot is not available for this port" },
+          { status: 409 }
+        );
+      }
+
+      // Create booking within transaction
+      booking = await Booking.create(
+        [
+          {
+            userId,
+            userName: user.name,
+            userEmail: user.email,
+            stationId,
+            portId: canonicalPortId,
+            startTime: start,
+            estimatedDuration: durationMinutes,
+            endTime: end,
+            status: "pending",
+          },
+        ],
+        { session }
       );
+      booking = booking[0]; // Create returns array when using session
+
+      await session.commitTransaction();
+    } catch (transactionError) {
+      await session.abortTransaction();
+      throw transactionError;
+    } finally {
+      session.endSession();
     }
 
-    const booking = await Booking.create({
-      userId,
-      userName: user.name,
-      userEmail: user.email,
-      stationId,
-      portId,
-      startTime: start,
-      estimatedDuration: durationMinutes,
-      endTime: end,
-      status: "pending",
-      deposit: {
-        amount: depositAmountNPR,
-        refunded: false,
-      },
-    });
+    // Calculate ETA if user location is provided
+    if (userLocation?.lat && userLocation?.lng) {
+      const stationCoords = station.location?.coordinates;
+      if (stationCoords?.lat && stationCoords?.lng) {
+        const eta = await calculateETA(userLocation, stationCoords);
+        if (eta) {
+          booking.userLocation = userLocation;
+          booking.eta = eta;
+        }
+      }
+    }
 
     // Generate QR code
     const qrData = JSON.stringify({
       bookingId: booking._id,
       stationId,
-      portId,
+      portId: canonicalPortId,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
     });
@@ -136,9 +174,9 @@ export async function POST(req: Request) {
     const khaltiRes = await khaltiInitiate({
       return_url: returnUrl,
       website_url: websiteUrl,
-      amount: depositAmountPaisa,
+      amount: totalAmountPaisa,
       purchase_order_id: String(booking._id),
-      purchase_order_name: `Deposit – ${station.name}`,
+      purchase_order_name: `Charging – ${(station as any).name}`,
       customer_info: {
         name: user.name,
         email: user.email,
@@ -151,16 +189,12 @@ export async function POST(req: Request) {
       merchant_estimated_duration: String(estimatedDuration),
     });
 
-    // Store Khalti pidx on the booking
-    booking.deposit.khaltiPidx = khaltiRes.pidx;
-    await booking.save();
-
     return NextResponse.json(
       {
         bookingId: booking._id,
         payment_url: khaltiRes.payment_url,
         pidx: khaltiRes.pidx,
-        amount: depositAmountNPR,
+        amount: totalAmountNPR,
         currency: "NPR",
       },
       { status: 200 }

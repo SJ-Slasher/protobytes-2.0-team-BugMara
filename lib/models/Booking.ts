@@ -10,12 +10,6 @@ export interface IBookingDocument extends Document {
   estimatedDuration: number;
   endTime: Date;
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
-  deposit: {
-    amount: number;
-    khaltiPidx?: string;
-    khaltiTransactionId?: string;
-    refunded: boolean;
-  };
   qrCode?: string;
   userLocation?: {
     lat: number;
@@ -26,6 +20,7 @@ export interface IBookingDocument extends Document {
     distanceKm: number;
     updatedAt: Date;
   };
+  khaltiPidx?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,12 +45,6 @@ const BookingSchema = new Schema<IBookingDocument>(
       default: "pending",
       index: true,
     },
-    deposit: {
-      amount: { type: Number, default: 0 },
-      khaltiPidx: { type: String },
-      khaltiTransactionId: { type: String },
-      refunded: { type: Boolean, default: false },
-    },
     qrCode: { type: String },
     userLocation: {
       lat: { type: Number },
@@ -66,6 +55,7 @@ const BookingSchema = new Schema<IBookingDocument>(
       distanceKm: { type: Number },
       updatedAt: { type: Date },
     },
+    khaltiPidx: { type: String, index: true },
   },
   { timestamps: true }
 );

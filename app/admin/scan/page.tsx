@@ -20,7 +20,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { cn, formatPrice, formatDuration } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface ScannedBooking {
@@ -34,10 +34,18 @@ interface ScannedBooking {
   endTime: string;
   estimatedDuration: number;
   status: string;
-  deposit?: { amount: number; refunded: boolean };
   station?: {
     name: string;
     location?: { address?: string; city?: string };
+  };
+  userLocation?: {
+    lat: number;
+    lng: number;
+  };
+  eta?: {
+    durationMinutes: number;
+    distanceKm: number;
+    updatedAt: string;
   };
 }
 
@@ -533,20 +541,23 @@ export default function AdminScanPage() {
                   Port: {booking.portId}
                 </p>
               </div>
-
-              {/* Deposit */}
-              {booking.deposit && (
-                <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      Deposit
-                    </span>
-                    <span className="text-lg font-bold text-primary">
-                      {formatPrice(booking.deposit.amount)}
-                    </span>
-                  </div>
-                  {booking.deposit.refunded && (
-                    <p className="mt-1 text-xs text-green-600">Refunded</p>
+              {/* ETA Arrival Info */}
+              {["pending", "confirmed"].includes(booking.status) && (
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 h-5 w-5 text-blue-500">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 3"/></svg>
+                  </span>
+                  {booking.eta ? (
+                    <div>
+                      <p className="text-sm font-medium text-blue-600">
+                        ETA to Station: {booking.eta.durationMinutes} min
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {booking.eta.distanceKm} km away
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No location info</span>
                   )}
                 </div>
               )}

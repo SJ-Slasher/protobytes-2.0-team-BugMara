@@ -364,14 +364,6 @@ export default async function StationDetailPage({
                       {formatPrice(station.pricing.perHour)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between border-t border-border/50 pt-3">
-                    <span className="text-sm text-muted-foreground">
-                      Deposit Amount
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {formatPrice(station.pricing.depositAmount)}
-                    </span>
-                  </div>
                 </div>
               </div>
             )}

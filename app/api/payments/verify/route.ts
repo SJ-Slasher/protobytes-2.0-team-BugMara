@@ -47,14 +47,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify pidx matches the booking's stored pidx
-    if (booking.deposit.khaltiPidx && booking.deposit.khaltiPidx !== pidx) {
-      return NextResponse.json(
-        { error: "Payment reference does not match this booking" },
-        { status: 400 }
-      );
-    }
-
     // Skip if booking is already confirmed/active/completed
     if (["confirmed", "active", "completed"].includes(booking.status)) {
       return NextResponse.json(
@@ -64,28 +56,17 @@ export async function POST(req: Request) {
     }
 
     if (lookup.status === "Completed") {
-      // Verify payment amount matches deposit
-      const expectedAmountPaisa = Math.round(booking.deposit.amount * 100);
-      if (lookup.total_amount !== expectedAmountPaisa) {
-        console.error(
-          `Payment amount mismatch: expected ${expectedAmountPaisa}, got ${lookup.total_amount}`
-        );
-        return NextResponse.json(
-          { error: "Payment amount does not match booking deposit" },
-          { status: 400 }
-        );
-      }
-
       // Payment successful — confirm the booking
       booking.status = "confirmed";
-      booking.deposit.khaltiPidx = pidx;
-      booking.deposit.khaltiTransactionId = lookup.transaction_id || undefined;
-      booking.deposit.refunded = false;
       await booking.save();
 
       // Reserve the port
+      const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+      const portFilter = isOid
+        ? { "chargingPorts._id": booking.portId }
+        : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, "chargingPorts._id": booking.portId },
+        { _id: booking.stationId, ...portFilter },
         {
           $set: {
             "chargingPorts.$.status": "reserved",
@@ -114,8 +95,10 @@ export async function POST(req: Request) {
       );
     }
 
-    if (lookup.status === "Refunded" || lookup.status === "Partially refunded") {
-      booking.deposit.refunded = true;
+    if (
+      lookup.status === "Refunded" || lookup.status === "Partially refunded"
+    ) {
+      booking.status = "cancelled";
       await booking.save();
 
       return NextResponse.json(

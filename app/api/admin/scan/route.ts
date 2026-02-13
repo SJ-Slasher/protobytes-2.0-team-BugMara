@@ -3,15 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import Booking from "@/lib/models/Booking";
 import Station from "@/lib/models/Station";
-import User from "@/lib/models/User";
 import { loadStationFromFile } from "@/lib/stations";
-
-async function verifyAdmin(userId: string) {
-  await dbConnect();
-  const user = await User.findOne({ clerkId: userId });
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return null;
-  return user;
-}
+import { verifyAdminRole } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -82,8 +75,15 @@ export async function POST(req: Request) {
     }
 
     // Station admins can only scan bookings for their own stations
-    if (user.role === "admin" && !sid.startsWith("station-")) {
-      if (!stationData || (stationData as Record<string, unknown>).adminId !== userId) {
+    if (user.role === "admin") {
+      if (sid.startsWith("station-")) {
+        // File-based stations have no ownership — only superadmins can scan these
+        return NextResponse.json(
+          { error: "You can only scan bookings for your own stations" },
+          { status: 403 }
+        );
+      }
+      if (!stationData || String((stationData as Record<string, unknown>).adminId) !== String(userId)) {
         return NextResponse.json(
           { error: "You can only scan bookings for your own stations" },
           { status: 403 }
@@ -136,8 +136,12 @@ export async function POST(req: Request) {
 
       // If activating, mark port as occupied for DB-based stations
       if (nextStatus === "active" && !sid.startsWith("station-")) {
+        const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+        const portFilter = isOid
+          ? { "chargingPorts._id": booking.portId }
+          : { "chargingPorts.portNumber": booking.portId };
         await Station.updateOne(
-          { _id: booking.stationId, "chargingPorts._id": booking.portId },
+          { _id: booking.stationId, ...portFilter },
           {
             $set: {
               "chargingPorts.$.status": "occupied",

@@ -52,7 +52,7 @@ function parseStationFromFile(s: any, index: number) {
     vehicleTypes: s.type || ["car"],
     operatingHours: { open: "06:00", close: "22:00" },
     chargingPorts: ports,
-    pricing: { perHour: 150, depositAmount: 500 },
+    pricing: { perHour: 150 },
     amenities: s.amenities || [],
     photos: [] as string[],
     rating: 0,

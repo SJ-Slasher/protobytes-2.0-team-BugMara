@@ -35,7 +35,6 @@ const stationSchema = z.object({
   lng: z.coerce.number().min(-180).max(180),
   chargingPorts: z.array(chargingPortSchema).min(1, "At least one port is required"),
   perHour: z.coerce.number().min(0, "Must be non-negative"),
-  depositAmount: z.coerce.number().min(0, "Must be non-negative"),
   openTime: z.string().min(1, "Opening time is required"),
   closeTime: z.string().min(1, "Closing time is required"),
   amenities: z.array(z.string()),
@@ -91,7 +90,6 @@ export default function AddStationPage() {
         },
       ],
       perHour: 200,
-      depositAmount: 500,
       openTime: "06:00",
       closeTime: "22:00",
       amenities: [],
@@ -136,7 +134,6 @@ export default function AddStationPage() {
         })),
         pricing: {
           perHour: data.perHour,
-          depositAmount: data.depositAmount,
         },
         operatingHours: {
           open: data.openTime,
@@ -456,26 +453,6 @@ export default function AddStationPage() {
                 {errors.perHour && (
                   <p className="mt-1 text-xs text-red-600">
                     {errors.perHour.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground">
-                  Deposit Amount (Rs.) *
-                </label>
-                <input
-                  type="number"
-                  {...register("depositAmount")}
-                  className={cn(
-                    "mt-1 w-full rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1",
-                    errors.depositAmount
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                      : "border-border focus:border-primary focus:ring-primary"
-                  )}
-                />
-                {errors.depositAmount && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {errors.depositAmount.message}
                   </p>
                 )}
               </div>

@@ -15,6 +15,9 @@ import {
   Clock,
   Settings,
   Save,
+  ToggleLeft,
+  ToggleRight,
+  CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
@@ -35,7 +38,6 @@ interface StationFormData {
     chargerType: string;
   }[];
   perHour: number;
-  depositAmount: number;
   openTime: string;
   closeTime: string;
   amenities: string[];
@@ -70,6 +72,7 @@ export default function EditStationPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [togglingPortId, setTogglingPortId] = useState<string | null>(null);
 
   const {
     register,
@@ -90,7 +93,6 @@ export default function EditStationPage({
       lng: 0,
       chargingPorts: [],
       perHour: 0,
-      depositAmount: 0,
       openTime: "06:00",
       closeTime: "22:00",
       amenities: [],
@@ -135,7 +137,6 @@ export default function EditStationPage({
                 chargerType: p.chargerType,
               })) ?? [],
             perHour: s.pricing?.perHour ?? 0,
-            depositAmount: s.pricing?.depositAmount ?? 0,
             openTime: s.operatingHours?.open ?? "06:00",
             closeTime: s.operatingHours?.close ?? "22:00",
             amenities: s.amenities ?? [],
@@ -156,6 +157,47 @@ export default function EditStationPage({
       ? current.filter((a: string) => a !== amenity)
       : [...current, amenity];
     setValue("amenities", updated);
+  };
+
+  const togglePortStatus = async (portId: string, currentStatus: string) => {
+    if (!stationId) return;
+    setTogglingPortId(portId);
+    try {
+      const newStatus = currentStatus === "available" ? "occupied" : "available";
+      const res = await fetch(`/api/admin/stations/${stationId}/ports`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portId, status: newStatus }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStation(data.station);
+      }
+    } catch (err) {
+      console.error("Failed to toggle port status:", err);
+    } finally {
+      setTogglingPortId(null);
+    }
+  };
+
+  const setPortStatus = async (portId: string, status: string) => {
+    if (!stationId) return;
+    setTogglingPortId(portId);
+    try {
+      const res = await fetch(`/api/admin/stations/${stationId}/ports`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portId, status }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStation(data.station);
+      }
+    } catch (err) {
+      console.error("Failed to set port status:", err);
+    } finally {
+      setTogglingPortId(null);
+    }
   };
 
   const onSubmit = async (data: StationFormData) => {
@@ -186,7 +228,6 @@ export default function EditStationPage({
         }),
         pricing: {
           perHour: data.perHour,
-          depositAmount: data.depositAmount,
         },
         operatingHours: {
           open: data.openTime,
@@ -494,6 +535,116 @@ export default function EditStationPage({
             </div>
           </div>
 
+          {/* Port Status Management */}
+          {station && station.chargingPorts && station.chargingPorts.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <h2 className="flex items-center gap-2 font-semibold text-card-foreground">
+                <CircleDot className="h-5 w-5 text-primary" />
+                Port Status Management
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Toggle ports between available and occupied, or set maintenance mode.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {station.chargingPorts.map((port) => {
+                  const portId = String(port._id || port.portNumber);
+                  const isToggling = togglingPortId === portId;
+                  return (
+                    <div
+                      key={portId}
+                      className="flex items-center justify-between rounded-lg border border-border p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex h-10 w-10 items-center justify-center rounded-lg",
+                            port.status === "available"
+                              ? "bg-green-500/15"
+                              : port.status === "occupied"
+                                ? "bg-red-500/15"
+                                : port.status === "reserved"
+                                  ? "bg-amber-500/15"
+                                  : "bg-slate-500/15"
+                          )}
+                        >
+                          <Zap
+                            className={cn(
+                              "h-5 w-5",
+                              port.status === "available"
+                                ? "text-green-400"
+                                : port.status === "occupied"
+                                  ? "text-red-400"
+                                  : port.status === "reserved"
+                                    ? "text-amber-400"
+                                    : "text-slate-400"
+                            )}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Port {port.portNumber}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {port.connectorType} &middot; {port.powerOutput} &middot; {port.chargerType}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Status badge */}
+                        <span
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-xs font-medium",
+                            port.status === "available"
+                              ? "bg-green-500/10 text-green-400"
+                              : port.status === "occupied"
+                                ? "bg-red-500/10 text-red-400"
+                                : port.status === "reserved"
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "bg-slate-500/10 text-slate-400"
+                          )}
+                        >
+                          {port.status.charAt(0).toUpperCase() + port.status.slice(1)}
+                        </span>
+
+                        {/* Quick toggle: available ↔ occupied */}
+                        <button
+                          type="button"
+                          onClick={() => togglePortStatus(portId, port.status)}
+                          disabled={isToggling || port.status === "maintenance"}
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                          title={port.status === "available" ? "Mark as Occupied" : "Mark as Available"}
+                        >
+                          {isToggling ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : port.status === "available" ? (
+                            <ToggleRight className="h-6 w-6 text-green-500" />
+                          ) : (
+                            <ToggleLeft className="h-6 w-6 text-red-400" />
+                          )}
+                        </button>
+
+                        {/* Maintenance toggle */}
+                        <select
+                          value={port.status}
+                          disabled={isToggling}
+                          onChange={(e) => setPortStatus(portId, e.target.value)}
+                          className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        >
+                          <option value="available">Available</option>
+                          <option value="occupied">Occupied</option>
+                          <option value="reserved">Reserved</option>
+                          <option value="maintenance">Maintenance</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Pricing */}
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="flex items-center gap-2 font-semibold text-card-foreground">
@@ -508,16 +659,6 @@ export default function EditStationPage({
                 <input
                   type="number"
                   {...register("perHour", { valueAsNumber: true })}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground">
-                  Deposit Amount (Rs.) *
-                </label>
-                <input
-                  type="number"
-                  {...register("depositAmount", { valueAsNumber: true })}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>

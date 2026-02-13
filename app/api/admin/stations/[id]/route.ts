@@ -2,14 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import Station from "@/lib/models/Station";
-import User from "@/lib/models/User";
-
-async function verifyAdmin(userId: string) {
-  await dbConnect();
-  const user = await User.findOne({ clerkId: userId });
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return null;
-  return user;
-}
+import { verifyAdminRole } from "@/lib/auth";
 
 // Check that a station admin owns the station; superadmins can access any
 async function verifyStationAccess(user: { role: string; clerkId: string }, stationId: string) {
@@ -30,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -72,7 +65,7 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -133,7 +126,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -195,7 +188,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

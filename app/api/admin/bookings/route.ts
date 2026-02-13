@@ -3,14 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import Booking from "@/lib/models/Booking";
 import Station from "@/lib/models/Station";
-import User from "@/lib/models/User";
-
-async function verifyAdmin(userId: string) {
-  await dbConnect();
-  const user = await User.findOne({ clerkId: userId });
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return null;
-  return user;
-}
+import { verifyAdminRole } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -19,7 +12,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

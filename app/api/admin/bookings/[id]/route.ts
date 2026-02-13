@@ -3,14 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import Booking from "@/lib/models/Booking";
 import Station from "@/lib/models/Station";
-import User from "@/lib/models/User";
-
-async function verifyAdmin(userId: string) {
-  await dbConnect();
-  const user = await User.findOne({ clerkId: userId });
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return null;
-  return user;
-}
+import { verifyAdminRole } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
@@ -22,7 +15,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -79,8 +72,12 @@ export async function PATCH(
       (status === "completed" || status === "cancelled") &&
       !sid.startsWith("station-")
     ) {
+      const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+      const portFilter = isOid
+        ? { "chargingPorts._id": booking.portId }
+        : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, "chargingPorts._id": booking.portId },
+        { _id: booking.stationId, ...portFilter },
         {
           $set: { "chargingPorts.$.status": "available" },
           $unset: { "chargingPorts.$.currentBookingId": "" },

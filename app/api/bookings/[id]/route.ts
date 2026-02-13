@@ -118,8 +118,12 @@ export async function PUT(
     // Only update port status for DB-based stations
     const sid = String(booking.stationId);
     if ((status === "completed" || status === "cancelled") && !sid.startsWith("station-")) {
+      const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+      const portFilter = isOid
+        ? { "chargingPorts._id": booking.portId }
+        : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, "chargingPorts._id": booking.portId },
+        { _id: booking.stationId, ...portFilter },
         {
           $set: { "chargingPorts.$.status": "available" },
           $unset: { "chargingPorts.$.currentBookingId": "" },
@@ -204,8 +208,12 @@ export async function PATCH(
 
     const sid = String(booking.stationId);
     if ((status === "completed" || status === "cancelled") && !sid.startsWith("station-")) {
+      const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+      const portFilter = isOid
+        ? { "chargingPorts._id": booking.portId }
+        : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, "chargingPorts._id": booking.portId },
+        { _id: booking.stationId, ...portFilter },
         {
           $set: { "chargingPorts.$.status": "available" },
           $unset: { "chargingPorts.$.currentBookingId": "" },
@@ -273,8 +281,12 @@ export async function DELETE(
     // Only update port status for DB-based stations
     const sid = String(booking.stationId);
     if (!sid.startsWith("station-")) {
+      const isOid = /^[a-f\d]{24}$/i.test(String(booking.portId));
+      const portFilter = isOid
+        ? { "chargingPorts._id": booking.portId }
+        : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, "chargingPorts._id": booking.portId },
+        { _id: booking.stationId, ...portFilter },
         {
           $set: { "chargingPorts.$.status": "available" },
           $unset: { "chargingPorts.$.currentBookingId": "" },
