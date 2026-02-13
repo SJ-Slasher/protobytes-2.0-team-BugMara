@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     const port = station.chargingPorts.find(
-      (p) => p._id?.toString() === portId
+      (p) => p._id?.toString() === portId || p.portNumber === portId
     );
     if (!port) {
       return NextResponse.json({ error: "Port not found" }, { status: 404 });

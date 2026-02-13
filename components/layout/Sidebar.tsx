@@ -144,8 +144,7 @@ export function Sidebar() {
             const isActive =
               link.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(link.href) &&
-                  (link.href !== "/admin" || pathname === "/admin");
+                : pathname === link.href;
             return (
               <Link
                 key={link.href}

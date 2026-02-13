@@ -150,7 +150,7 @@ export default function AdminScanPage() {
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText) => verifyQrData(decodedText),
-          () => {}
+          () => { }
         );
       } catch {
         // facingMode failed — try getting any available camera
@@ -162,7 +162,7 @@ export default function AdminScanPage() {
           cameras[0].id,
           { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText) => verifyQrData(decodedText),
-          () => {}
+          () => { }
         );
       }
 
@@ -362,7 +362,7 @@ export default function AdminScanPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Take a photo of the QR code or select from gallery.
                 </p>
-                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-primary bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90">
                   <Upload className="h-4 w-4" />
                   Choose Image
                   <input
