@@ -32,7 +32,9 @@ export async function GET(req: Request) {
     if (user.role === "admin") {
       const adminStations = await Station.find({ adminId: userId }).select("_id").lean();
       const stationIds = adminStations.map((s) => s._id);
-      filter.stationId = { $in: stationIds };
+      // Bookings store stationId as string (Schema.Types.Mixed), so match both formats
+      const stationIdStrings = stationIds.map((id) => String(id));
+      filter.stationId = { $in: [...stationIds, ...stationIdStrings] };
     }
 
     const [bookings, total] = await Promise.all([

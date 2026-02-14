@@ -23,8 +23,8 @@ const roleOptions: RoleOption[] = [
     description: "Book charging sessions, save favorites, and track your EV charging history.",
     icon: User,
     color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-200 ring-blue-500/20",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20 ring-blue-500/20",
   },
   {
     role: "admin",
@@ -32,8 +32,8 @@ const roleOptions: RoleOption[] = [
     description: "Manage your charging stations, view bookings, and monitor analytics.",
     icon: Building2,
     color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-200 ring-amber-500/20",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20 ring-amber-500/20",
   },
   {
     role: "superadmin",
@@ -41,8 +41,8 @@ const roleOptions: RoleOption[] = [
     description: "Full platform access. Manage all stations, users, and system settings.",
     icon: ShieldCheck,
     color: "text-purple-600",
-    bg: "bg-purple-50",
-    border: "border-purple-200 ring-purple-500/20",
+    bg: "bg-purple-500/10",
+    border: "border-purple-500/20 ring-purple-500/20",
   },
 ];
 
@@ -73,8 +73,8 @@ export function RoleSelector({
               className={cn(
                 "flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all",
                 isSelected
-                  ? `${option.border} bg-white shadow-sm ring-2`
-                  : "border-border bg-white hover:border-border/80 hover:shadow-sm"
+                  ? `${option.border} bg-card shadow-sm ring-2`
+                  : "border-border bg-card hover:border-border/80 hover:shadow-sm"
               )}
             >
               <div

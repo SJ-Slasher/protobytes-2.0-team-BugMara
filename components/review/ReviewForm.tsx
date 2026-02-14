@@ -57,7 +57,7 @@ export function ReviewForm({ stationId, bookingId, onSubmitted }: ReviewFormProp
 
   if (success) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
+      <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-center">
         <p className="text-sm font-medium text-green-800">
           Thank you! Your review has been submitted.
         </p>
@@ -119,7 +119,7 @@ export function ReviewForm({ stationId, bookingId, onSubmitted }: ReviewFormProp
       </div>
 
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       )}
 
       <button

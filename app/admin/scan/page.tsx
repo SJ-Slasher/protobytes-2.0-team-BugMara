@@ -345,10 +345,10 @@ export default function AdminScanPage() {
                 </button>
 
                 {cameraError && (
-                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-left">
+                  <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-left">
                     <div className="flex items-start gap-2">
                       <CameraOff className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                      <p className="text-sm text-red-700">{cameraError}</p>
+                      <p className="text-sm text-red-400">{cameraError}</p>
                     </div>
                   </div>
                 )}
@@ -370,7 +370,7 @@ export default function AdminScanPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Take a photo of the QR code or select from gallery.
                 </p>
-                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
                   <Upload className="h-4 w-4" />
                   Choose Image
                   <input
@@ -426,19 +426,19 @@ export default function AdminScanPage() {
 
         {/* Error */}
         {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
             <div className="flex items-start gap-3">
               <XCircle className="mt-0.5 h-5 w-5 text-red-500" />
               <div>
-                <p className="text-sm font-medium text-red-800">
+                <p className="text-sm font-medium text-red-400">
                   Verification Failed
                 </p>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
+                <p className="mt-1 text-sm text-red-400">{error}</p>
               </div>
             </div>
             <button
               onClick={handleScanAnother}
-              className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-red-700 hover:text-red-800"
+              className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300"
             >
               <RefreshCw className="h-4 w-4" />
               Try Again
@@ -448,14 +448,14 @@ export default function AdminScanPage() {
 
         {/* Success Confirmation */}
         {newStatus && (
-          <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
+          <div className="mt-6 rounded-xl border border-green-500/20 bg-green-500/10 p-4">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-400" />
               <div>
-                <p className="text-sm font-medium text-green-800">
+                <p className="text-sm font-medium text-green-400">
                   {message}
                 </p>
-                <p className="mt-1 text-sm text-green-700">
+                <p className="mt-1 text-sm text-green-400">
                   Status changed from{" "}
                   <span className="font-medium">{previousStatus}</span> to{" "}
                   <span className="font-medium">{newStatus}</span>.
@@ -592,7 +592,7 @@ export default function AdminScanPage() {
 
               <button
                 onClick={handleScanAnother}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <ScanLine className="h-4 w-4" />
                 Scan Another

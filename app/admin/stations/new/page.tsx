@@ -206,7 +206,7 @@ export default function AddStationPage() {
                   placeholder="e.g. Hotel Barahi Charging Station"
                 />
                 {errors.name && (
-                  <p className="mt-1 text-xs text-red-600">
+                  <p className="mt-1 text-xs text-red-400">
                     {errors.name.message}
                   </p>
                 )}
@@ -228,7 +228,7 @@ export default function AddStationPage() {
                     placeholder="Street address"
                   />
                   {errors.address && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.address.message}
                     </p>
                   )}
@@ -248,7 +248,7 @@ export default function AddStationPage() {
                     placeholder="e.g. Kathmandu"
                   />
                   {errors.city && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.city.message}
                     </p>
                   )}
@@ -295,7 +295,7 @@ export default function AddStationPage() {
                     )}
                   />
                   {errors.lat && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.lat.message}
                     </p>
                   )}
@@ -316,7 +316,7 @@ export default function AddStationPage() {
                     )}
                   />
                   {errors.lng && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.lng.message}
                     </p>
                   )}
@@ -350,7 +350,7 @@ export default function AddStationPage() {
             </div>
 
             {errors.chargingPorts?.root && (
-              <p className="mt-2 text-xs text-red-600">
+              <p className="mt-2 text-xs text-red-400">
                 {errors.chargingPorts.root.message}
               </p>
             )}
@@ -369,7 +369,7 @@ export default function AddStationPage() {
                       <button
                         type="button"
                         onClick={() => remove(index)}
-                        className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
+                        className="rounded p-1 text-red-500 transition-colors hover:bg-red-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -451,7 +451,7 @@ export default function AddStationPage() {
                   )}
                 />
                 {errors.perHour && (
-                  <p className="mt-1 text-xs text-red-600">
+                  <p className="mt-1 text-xs text-red-400">
                     {errors.perHour.message}
                   </p>
                 )}
@@ -523,7 +523,7 @@ export default function AddStationPage() {
 
           {/* Error */}
           {error && (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-400">
               {error}
             </div>
           )}

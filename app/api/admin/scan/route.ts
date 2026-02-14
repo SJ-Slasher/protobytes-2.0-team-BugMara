@@ -141,7 +141,7 @@ export async function POST(req: Request) {
           ? { "chargingPorts._id": booking.portId }
           : { "chargingPorts.portNumber": booking.portId };
         await Station.updateOne(
-          { _id: booking.stationId, ...portFilter },
+          { _id: booking.stationId, ...portFilter } as Record<string, unknown>,
           {
             $set: {
               "chargingPorts.$.status": "occupied",

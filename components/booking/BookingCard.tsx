@@ -118,7 +118,7 @@ export function BookingCard({ booking, onCancel, showActions = true }: BookingCa
           {canCancel && onCancel && (
             <button
               onClick={() => onCancel(booking._id)}
-              className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+              className="flex items-center gap-1 rounded-lg bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
             >
               <X className="h-3.5 w-3.5" />
               Cancel

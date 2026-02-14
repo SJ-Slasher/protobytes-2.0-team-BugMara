@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   MapPin,
@@ -71,6 +72,20 @@ async function getReviews(stationId: string): Promise<IReview[]> {
   } catch {
     return [];
   }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const station = await getStation(id);
+  if (!station) return { title: "Station Not Found | Urja Station" };
+  return {
+    title: `${station.name} | Urja Station`,
+    description: `Book EV charging at ${station.name} in ${station.location?.address ?? "Nepal"}. ${station.chargingPorts?.length || 0} ports available.`,
+  };
 }
 
 export default async function StationDetailPage({

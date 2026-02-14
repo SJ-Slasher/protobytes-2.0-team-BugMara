@@ -470,7 +470,7 @@ export default function BookingConfirmationPage({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard/bookings"
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-white py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             View My Bookings
           </Link>
@@ -478,7 +478,7 @@ export default function BookingConfirmationPage({
             <button
               onClick={handleCancel}
               disabled={cancelling}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-50 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500/10 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
             >
               {cancelling ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

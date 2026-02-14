@@ -231,7 +231,7 @@ export function StationMap({
     const map = mapRef.current.getMap();
 
     try {
-      map.setConfigProperty("basemap", "lightPreset", "dusk");
+      map.setConfigProperty("basemap", "lightPreset", "dawn");
       map.setConfigProperty("basemap", "show3dObjects", true);
     } catch { /* */ }
   }, [mapLoaded]);
@@ -276,13 +276,28 @@ export function StationMap({
 
     const allModels: THREE.Object3D[] = [];
     let disposed = false;
+    let renderFrame = 0;
 
     // ── Station GLB ──
     const STATION_SCALE = 5;
     loader.load("/models/electric_charging_station.glb", (gltf) => {
       if (disposed) return;
       const template = gltf.scene;
-      template.rotation.set(Math.PI / 2, -Math.PI / 6, 0);
+      // Consistent upright rotation for all stations
+      template.rotation.set(Math.PI / 2, 0, 0);
+      // Bake the rotation into geometry so bounding box is accurate in world Z-up
+      template.updateMatrixWorld(true);
+
+      // Compute bounding box to find how far the model extends below origin
+      const box = new THREE.Box3().setFromObject(template);
+      // Shift the entire model up so its bottom sits at z = 0 (no clipping)
+      // Plus a small extra margin so it visually floats above the surface
+      const zShift = -box.min.z + (box.max.z - box.min.z) * 0.15;
+
+      // Apply the shift to all children so it's baked into every clone
+      template.children.forEach((child) => {
+        child.position.z += zShift;
+      });
 
       validStations.forEach((station, i) => {
         const { lng, lat } = station.location.coordinates;
@@ -291,7 +306,9 @@ export function StationMap({
         const model = template.clone();
         model.scale.set(STATION_SCALE, STATION_SCALE, STATION_SCALE);
         model.position.set(dx, dy, 0);
-        model.userData = { idx: i, type: "station", baseScale: STATION_SCALE };
+        model.userData = { idx: i, type: "station", baseScale: STATION_SCALE, lngLat: [lng, lat], terrainElev: 0 };
+        // Disable frustum culling — the custom projection matrix confuses Three.js bounds checks
+        model.traverse((child) => { child.frustumCulled = false; });
         scene.add(model);
         allModels.push(model);
       });
@@ -304,8 +321,22 @@ export function StationMap({
       if (disposed) return;
       const car = gltf.scene;
       car.rotation.set(Math.PI / 2, 0, 0);
+      // Bake rotation and lift car above ground
+      car.updateMatrixWorld(true);
+      const carBox = new THREE.Box3().setFromObject(car);
+      const carZShift = -carBox.min.z + (carBox.max.z - carBox.min.z) * 0.05;
+      car.children.forEach((child) => {
+        child.position.z += carZShift;
+      });
+
       car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
-      car.userData = { type: "car", baseScale: CAR_SCALE, heading: 0 };
+      car.userData = {
+        type: "car", baseScale: CAR_SCALE, heading: 0,
+        lngLat: userLocation ? [userLocation.lng, userLocation.lat] : null,
+        terrainElev: 0,
+      };
+      // Disable frustum culling — the custom projection matrix confuses Three.js bounds checks
+      car.traverse((child) => { child.frustumCulled = false; });
 
       if (userLocation) {
         const dx = (lngToMercX(userLocation.lng) - refX) / scale;
@@ -339,26 +370,48 @@ export function StationMap({
       },
 
       render(_gl: WebGLRenderingContext, matrix: number[]) {
+        renderFrame++;
         const t = performance.now() * 0.001;
         const currentZoom = map.getZoom();
 
-        // Use an exponential scale that keeps models visible at all zoom levels
-        // At zoom 15 → factor = 1, zoom 7 → factor = 256, zoom 20 → factor = 0.03
+        // Exponential scale to keep models a consistent *screen* size across zooms.
+        // Reference zoom 15 → factor 1.
         const zoomFactor = Math.pow(2, 15 - currentZoom);
-        // Clamp so models don't vanish when zoomed in or become absurd when zoomed out
         const clampedFactor = Math.max(0.05, Math.min(zoomFactor, 512));
+
+        // Query terrain elevation periodically so models sit on the ground
+        // (first 10 frames eagerly while terrain tiles load, then every ~2s)
+        if (renderFrame <= 10 || renderFrame % 120 === 0) {
+          allModels.forEach((m) => {
+            if (m.userData?.lngLat) {
+              try {
+                const elev = (map as any).queryTerrainElevation(
+                  m.userData.lngLat
+                );
+                if (elev != null && isFinite(elev)) {
+                  m.userData.terrainElev = elev;
+                }
+              } catch { /* terrain not available yet */ }
+            }
+          });
+        }
 
         allModels.forEach((m, i) => {
           const base = m.userData?.baseScale ?? 30;
           const s = base * clampedFactor;
           m.scale.set(s, s, s);
 
+          // Terrain elevation in metres (0 until terrain tiles load)
+          const terrainZ = m.userData?.terrainElev ?? 0;
+
           if (m.userData?.type === "station") {
-            m.position.z = Math.sin(t * 0.5 + i * 1.8) * 2 * clampedFactor;
+            // Float above the terrain with a gentle bob animation
+            const bob = (Math.sin(t * 0.5 + i * 1.8) * 0.5 + 0.5) * 2 * clampedFactor;
+            const hoverHeight = 8 * clampedFactor;
+            m.position.z = terrainZ + hoverHeight + bob;
           }
           if (m.userData?.type === "car") {
-            m.position.z = 0;
-            // Only apply heading rotation when in navigation mode
+            m.position.z = terrainZ + 2 * clampedFactor;
             if (navigationMode) {
               const headingRad = ((m.userData?.heading ?? 0) * Math.PI) / 180;
               m.rotation.set(Math.PI / 2, 0, -headingRad);
@@ -425,6 +478,7 @@ export function StationMap({
       const dx = (lngToMercX(userLocation.lng) - rd.refX) / rd.scale;
       const dy = (rd.refY - latToMercY(userLocation.lat)) / rd.scale;
       car.position.set(dx, dy, car.position.z);
+      car.userData.lngLat = [userLocation.lng, userLocation.lat];
       car.visible = true;
     } else {
       car.visible = false;
@@ -640,8 +694,8 @@ export function StationMap({
             onClose={() => setSelectedStation(null)}
             closeOnClick={false}
           >
-            <div className="min-w-[220px] p-2">
-              <h3 className="text-sm font-semibold text-foreground">
+            <div className="min-w-[220px] p-2 bg-card rounded-xl text-card-foreground">
+              <h3 className="text-sm font-semibold text-card-foreground">
                 {selectedStation.name}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -661,7 +715,7 @@ export function StationMap({
                   ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                <span className="font-medium text-green-600">
+                <span className="font-medium text-green-400">
                   {availablePorts(selectedStation)}
                 </span>{" "}
                 / {totalPorts(selectedStation)} ports available
@@ -746,7 +800,7 @@ export function StationMap({
         <>
           {/* Top: Turn-by-turn instruction card */}
           <div className="absolute top-2 left-2 right-12 sm:top-4 sm:left-4 sm:right-16 z-10">
-            <div className="rounded-xl sm:rounded-2xl bg-[#1a2332]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="rounded-xl sm:rounded-2xl bg-[#1c2940]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
               {/* Current maneuver */}
               {currentStep && (
                 <div className="flex items-center gap-2.5 p-2.5 sm:gap-4 sm:p-4">
@@ -794,7 +848,7 @@ export function StationMap({
 
           {/* Bottom: Stats bar */}
           <div className="absolute bottom-0 left-0 right-0 z-10">
-            <div className="bg-[#1a2332]/95 backdrop-blur-xl border-t border-white/10">
+            <div className="bg-[#1c2940]/95 backdrop-blur-xl border-t border-white/10">
               <div className="grid grid-cols-4 gap-1 px-3 py-2.5 sm:flex sm:items-center sm:justify-between sm:px-6 sm:py-4">
                 {/* ETA */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -849,7 +903,7 @@ export function StationMap({
           {userInteractedRef.current && (
             <button
               onClick={reCenter}
-              className="absolute bottom-28 right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#1a2332]/90 shadow-xl border border-white/10 text-primary transition-all hover:bg-[#1a2332] active:scale-95"
+              className="absolute bottom-28 right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#1c2940]/90 shadow-xl border border-white/10 text-primary transition-all hover:bg-[#1c2940] active:scale-95"
             >
               <Locate className="h-5 w-5" />
             </button>

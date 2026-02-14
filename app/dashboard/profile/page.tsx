@@ -275,15 +275,15 @@ export default function ProfilePage() {
 
           {/* Error / Success */}
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+              <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
 
           {saved && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <p className="text-sm text-green-700">Profile updated successfully!</p>
+            <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+              <CheckCircle2 className="h-4 w-4 text-green-400" />
+              <p className="text-sm text-green-400">Profile updated successfully!</p>
             </div>
           )}
 

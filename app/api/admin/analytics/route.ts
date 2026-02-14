@@ -32,8 +32,10 @@ export async function GET(req: Request) {
     if (user.role === "admin") {
       const adminStations = await Station.find({ adminId: userId }).select("_id").lean();
       const stationIds = adminStations.map((s) => s._id);
+      // Bookings store stationId as string (Schema.Types.Mixed), so match both formats
+      const stationIdStrings = stationIds.map((id) => String(id));
       stationFilter = { _id: { $in: stationIds } };
-      bookingStationMatch = { stationId: { $in: stationIds } };
+      bookingStationMatch = { stationId: { $in: [...stationIds, ...stationIdStrings] } };
     }
 
     const [
@@ -44,6 +46,7 @@ export async function GET(req: Request) {
       totalStations,
       totalUsers,
       dailyBookings,
+      sourceBreakdown,
     ] = await Promise.all([
       Booking.aggregate([
         {
@@ -56,6 +59,7 @@ export async function GET(req: Request) {
         {
           $group: {
             _id: null,
+            total: { $sum: { $ifNull: ["$amountPaid", 0] } },
             count: { $sum: 1 },
           },
         },
@@ -109,7 +113,7 @@ export async function GET(req: Request) {
         },
       ]),
 
-      Station.countDocuments({ isActive: true, ...stationFilter }),
+      Station.countDocuments({ isActive: { $ne: false }, ...stationFilter }),
 
       user.role === "superadmin" ? User.countDocuments() : Promise.resolve(0),
 
@@ -125,6 +129,24 @@ export async function GET(req: Request) {
         },
         { $sort: { _id: 1 } },
       ]),
+
+      // Source breakdown: online vs walk-in-qr vs walk-in-manual
+      Booking.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+            status: { $in: ["confirmed", "active", "completed"] },
+            ...bookingStationMatch,
+          },
+        },
+        {
+          $group: {
+            _id: { $ifNull: ["$source", "online"] },
+            count: { $sum: 1 },
+            revenue: { $sum: { $ifNull: ["$amountPaid", 0] } },
+          },
+        },
+      ]),
     ]);
 
     const statusCounts: Record<string, number> = {};
@@ -133,7 +155,7 @@ export async function GET(req: Request) {
     });
 
     const totalPorts = await Station.aggregate([
-      { $match: { isActive: true, ...stationFilter } },
+      { $match: { isActive: { $ne: false }, ...stationFilter } },
       { $unwind: "$chargingPorts" },
       {
         $group: {
@@ -157,10 +179,22 @@ export async function GET(req: Request) {
           100
         : 0;
 
+    const sourceCounts: Record<string, { count: number; revenue: number }> = {};
+    sourceBreakdown.forEach((item: { _id: string; count: number; revenue: number }) => {
+      sourceCounts[item._id] = { count: item.count, revenue: item.revenue };
+    });
+
+    const walkInTotal =
+      (sourceCounts["walk-in-qr"]?.count || 0) +
+      (sourceCounts["walk-in-manual"]?.count || 0);
+    const walkInRevenue =
+      (sourceCounts["walk-in-qr"]?.revenue || 0) +
+      (sourceCounts["walk-in-manual"]?.revenue || 0);
+
     return NextResponse.json(
       {
         revenue: {
-          total: totalRevenue[0]?.count || 0,
+          total: totalRevenue[0]?.total || 0,
           currency: "NPR",
           period: `${daysAgo} days`,
         },
@@ -177,6 +211,14 @@ export async function GET(req: Request) {
           utilizationRate: Math.round(utilizationRate * 100) / 100,
         },
         dailyBookings,
+        sourceBreakdown: {
+          online: sourceCounts["online"]?.count || 0,
+          walkInQr: sourceCounts["walk-in-qr"]?.count || 0,
+          walkInManual: sourceCounts["walk-in-manual"]?.count || 0,
+          walkInTotal,
+          walkInRevenue,
+          onlineRevenue: sourceCounts["online"]?.revenue || 0,
+        },
       },
       { status: 200 }
     );

@@ -77,7 +77,7 @@ export async function PATCH(
         ? { "chargingPorts._id": booking.portId }
         : { "chargingPorts.portNumber": booking.portId };
       await Station.updateOne(
-        { _id: booking.stationId, ...portFilter },
+        { _id: booking.stationId, ...portFilter } as Record<string, unknown>,
         {
           $set: { "chargingPorts.$.status": "available" },
           $unset: { "chargingPorts.$.currentBookingId": "" },

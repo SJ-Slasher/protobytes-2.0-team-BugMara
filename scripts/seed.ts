@@ -87,24 +87,22 @@ async function seed() {
 
   // Transform and insert stations
   const transformedStations = stations.map((s, index) => {
-    const ports = (s.plugs || []).map((plug, pIndex) => ({
-      portNumber: `P${index + 1}-${pIndex + 1}`,
-      connectorType: plug.plug,
-      powerOutput: plug.power || "N/A",
-      chargerType: plug.type || "N/A",
-      status: "available",
-    }));
+    const basePlug = (s.plugs && s.plugs[0]) || { plug: "type2", power: "7.2Kw", type: "AC" };
+    const connectorTypes = ["type2", "CCS2", "CHAdeMO"];
+    const powerOutputs = ["7.2Kw", "22Kw", "50Kw"];
+    const chargerTypes = ["AC", "AC", "DC"];
 
-    // If no plugs defined, create a default port
-    if (ports.length === 0) {
-      ports.push({
-        portNumber: `P${index + 1}-1`,
-        connectorType: "type2",
-        powerOutput: "7.2Kw",
-        chargerType: "AC",
+    // Always create exactly 3 ports per station
+    const ports = Array.from({ length: 3 }, (_, pIndex) => {
+      const plug = s.plugs?.[pIndex];
+      return {
+        portNumber: `P${index + 1}-${pIndex + 1}`,
+        connectorType: plug?.plug || connectorTypes[pIndex],
+        powerOutput: plug?.power || powerOutputs[pIndex],
+        chargerType: plug?.type || chargerTypes[pIndex],
         status: "available",
-      });
-    }
+      };
+    });
 
     const isComingSoon = s.name.includes("Coming Soon");
 

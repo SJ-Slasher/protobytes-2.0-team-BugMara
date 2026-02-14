@@ -4,9 +4,14 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Urja Station - EV Charging Station Booking",
+  title: {
+    default: "Urja Station - EV Charging Station Booking",
+    template: "%s | Urja Station",
+  },
   description:
     "Find, book, and charge your electric vehicle at stations across Nepal",
+  keywords: ["EV charging", "electric vehicle", "Nepal", "booking", "Urja Station"],
+  authors: [{ name: "Team BugMara" }],
 };
 
 export default function RootLayout({

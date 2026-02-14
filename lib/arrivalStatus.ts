@@ -47,8 +47,8 @@ export function calculateArrivalStatus(
       urgencyLevel: "normal",
       isOverdue: false,
       statusLabel: "No location data",
-      bgColor: "bg-gray-100",
-      textColor: "text-gray-700",
+      bgColor: "bg-slate-500/10",
+      textColor: "text-slate-300",
     };
   }
 
@@ -76,32 +76,32 @@ export function calculateArrivalStatus(
     // More than 30 minutes overdue
     urgencyLevel = "delayed";
     statusLabel = `${Math.round(Math.abs(minutesUntilArrival))} mins overdue`;
-    bgColor = "bg-red-100";
-    textColor = "text-red-800";
+    bgColor = "bg-red-500/15";
+    textColor = "text-red-400";
   } else if (isOverdue) {
     // 0-30 minutes overdue or arriving soon
     urgencyLevel = "urgent";
     statusLabel = isOverdue ? `Overdue by ${Math.round(Math.abs(minutesUntilArrival))} mins` : "Arriving now";
-    bgColor = "bg-orange-100";
-    textColor = "text-orange-800";
+    bgColor = "bg-orange-500/15";
+    textColor = "text-orange-400";
   } else if (minutesUntilArrival <= 5) {
     // Arriving within 5 minutes (urgent)
     urgencyLevel = "urgent";
     statusLabel = `Arrives in ${Math.round(minutesUntilArrival)} min${Math.round(minutesUntilArrival) === 1 ? "" : "s"}`;
-    bgColor = "bg-red-100";
-    textColor = "text-red-800";
+    bgColor = "bg-red-500/15";
+    textColor = "text-red-400";
   } else if (minutesUntilArrival <= 15) {
     // Approaching (15 minutes)
     urgencyLevel = "approaching";
     statusLabel = `Arrives in ${Math.round(minutesUntilArrival)} mins`;
-    bgColor = "bg-yellow-100";
-    textColor = "text-yellow-800";
+    bgColor = "bg-yellow-500/15";
+    textColor = "text-yellow-400";
   } else {
     // Normal
     urgencyLevel = "normal";
     statusLabel = `Arrives in ${Math.round(minutesUntilArrival)} mins`;
-    bgColor = "bg-green-100";
-    textColor = "text-green-800";
+    bgColor = "bg-emerald-500/15";
+    textColor = "text-emerald-400";
   }
 
   return {

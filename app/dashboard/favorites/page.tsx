@@ -142,7 +142,7 @@ export default function FavoritesPage() {
                     <button
                       onClick={() => handleRemove(station._id)}
                       disabled={removingId === station._id}
-                      className="rounded-full p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+                      className="rounded-full p-1.5 text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                       aria-label="Remove from favorites"
                     >
                       {removingId === station._id ? (
@@ -177,8 +177,8 @@ export default function FavoritesPage() {
                           className={cn(
                             "font-medium",
                             availablePorts > 0
-                              ? "text-green-600"
-                              : "text-red-600"
+                              ? "text-green-400"
+                              : "text-red-400"
                           )}
                         >
                           {availablePorts}

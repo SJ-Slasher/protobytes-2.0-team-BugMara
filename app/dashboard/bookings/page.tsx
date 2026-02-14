@@ -133,7 +133,7 @@ export default function MyBookingsPage() {
               className={cn(
                 "flex flex-1 items-center justify-center gap-1 sm:gap-1.5 rounded-md px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap",
                 activeTab === tab.value
-                  ? "bg-white text-foreground shadow-sm"
+                  ? "bg-primary/15 text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

@@ -30,12 +30,8 @@ export async function GET(req: Request) {
         `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
         "User";
 
-      // Use the role selected during sign-up (passed via query param)
-      const validRoles = ["user", "admin", "superadmin"] as const;
-      const role: "user" | "admin" | "superadmin" =
-        validRoles.includes(roleParam as typeof validRoles[number])
-          ? (roleParam as "user" | "admin" | "superadmin")
-          : "user";
+      // Users always start as "user" role — admin must be assigned manually
+      const role: "user" | "admin" | "superadmin" = "user";
 
       const newUser = await User.create({
         clerkId: userId,
@@ -45,9 +41,8 @@ export async function GET(req: Request) {
         favoriteStations: [],
       });
 
-      const redirectUrl =
-        role === "admin" || role === "superadmin" ? "/admin" : "/dashboard";
-      return NextResponse.redirect(new URL(redirectUrl, req.url));
+      // New users always go to dashboard
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     if (!user && !autoCreate) {

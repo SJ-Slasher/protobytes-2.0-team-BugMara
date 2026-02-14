@@ -10,6 +10,7 @@ export interface IBookingDocument extends Document {
   estimatedDuration: number;
   endTime: Date;
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
+  source: "online" | "walk-in-qr" | "walk-in-manual";
   qrCode?: string;
   userLocation?: {
     lat: number;
@@ -21,6 +22,13 @@ export interface IBookingDocument extends Document {
     updatedAt: Date;
   };
   khaltiPidx?: string;
+  amountPaid?: number;
+  paymentMethod?: "khalti" | "cash" | "other";
+  customerName?: string;
+  customerPhone?: string;
+  vehicleNumber?: string;
+  vehicleType?: string;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +64,23 @@ const BookingSchema = new Schema<IBookingDocument>(
       updatedAt: { type: Date },
     },
     khaltiPidx: { type: String, index: true },
+    amountPaid: { type: Number, default: 0 },
+    source: {
+      type: String,
+      enum: ["online", "walk-in-qr", "walk-in-manual"],
+      default: "online",
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["khalti", "cash", "other"],
+      default: "khalti",
+    },
+    customerName: { type: String, default: "" },
+    customerPhone: { type: String, default: "" },
+    vehicleNumber: { type: String, default: "" },
+    vehicleType: { type: String, default: "" },
+    notes: { type: String, default: "" },
   },
   { timestamps: true }
 );

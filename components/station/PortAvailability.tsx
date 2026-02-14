@@ -88,23 +88,23 @@ export function PortAvailability({
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-lg",
                     port.status === "available"
-                      ? "bg-green-100"
+                      ? "bg-green-500/20"
                       : port.status === "occupied"
-                        ? "bg-red-100"
+                        ? "bg-red-500/20"
                         : port.status === "reserved"
-                          ? "bg-yellow-100"
-                          : "bg-gray-100"
+                          ? "bg-yellow-500/20"
+                          : "bg-muted"
                   )}
                 >
                   <Zap
                     className={cn(
                       "h-4 w-4",
                       port.status === "available"
-                        ? "text-green-600"
+                        ? "text-green-400"
                         : port.status === "occupied"
-                          ? "text-red-600"
+                          ? "text-red-400"
                           : port.status === "reserved"
-                            ? "text-yellow-600"
+                            ? "text-yellow-400"
                             : "text-gray-500"
                     )}
                   />

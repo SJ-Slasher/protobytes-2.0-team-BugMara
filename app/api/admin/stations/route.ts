@@ -22,7 +22,7 @@ export async function GET() {
     const dbStations = await Station.find(filter).sort({ createdAt: -1 }).lean();
 
     // File-based demo stations are only visible to superadmins
-    let stations = [...dbStations];
+    let stations: unknown[] = [...dbStations];
     if (user.role === "superadmin") {
       const fileStations = loadAllStationsFromFile();
       const dbIds = new Set(dbStations.map((s) => String(s.name)));
@@ -47,7 +47,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await verifyAdmin(userId);
+    await dbConnect();
+
+    const user = await verifyAdminRole(userId);
     if (!user) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -56,7 +56,8 @@ export async function POST(req: Request) {
     }
 
     const isFileBased = stationId.startsWith("station-");
-    let station: IStationDocument | Record<string, unknown> | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let station: any = null;
 
     if (isFileBased) {
       station = loadStationFromFile(stationId);
@@ -162,7 +163,6 @@ export async function POST(req: Request) {
       endTime: end.toISOString(),
     });
     booking.qrCode = await QRCode.toDataURL(qrData);
-    await booking.save();
 
     // Build return URL from environment variable only (never trust Origin header)
     const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -188,6 +188,11 @@ export async function POST(req: Request) {
       merchant_start_time: startTime,
       merchant_estimated_duration: String(estimatedDuration),
     });
+
+    // Save Khalti payment reference
+    booking.khaltiPidx = khaltiRes.pidx;
+    booking.amountPaid = totalAmountNPR;
+    await booking.save();
 
     return NextResponse.json(
       {

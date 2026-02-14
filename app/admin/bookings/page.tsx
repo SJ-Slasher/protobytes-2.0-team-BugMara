@@ -371,7 +371,7 @@ export default function AdminBookingsPage() {
                                         "completed"
                                       )
                                     }
-                                    className="rounded-lg p-2 text-green-600 transition-colors hover:bg-green-50"
+                                    className="rounded-lg p-2 text-green-400 transition-colors hover:bg-green-500/10"
                                     title="Mark Complete"
                                   >
                                     <CheckCircle2 className="h-4 w-4" />
@@ -386,7 +386,7 @@ export default function AdminBookingsPage() {
                                         "no-show"
                                       )
                                     }
-                                    className="rounded-lg p-2 text-orange-600 transition-colors hover:bg-orange-50"
+                                    className="rounded-lg p-2 text-orange-400 transition-colors hover:bg-orange-500/10"
                                     title="Mark No-Show"
                                   >
                                     <AlertTriangle className="h-4 w-4" />
@@ -401,7 +401,7 @@ export default function AdminBookingsPage() {
                                         "cancelled"
                                       )
                                     }
-                                    className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
+                                    className="rounded-lg p-2 text-red-400 transition-colors hover:bg-red-500/10"
                                     title="Cancel"
                                   >
                                     <XCircle className="h-4 w-4" />
@@ -453,11 +453,11 @@ export default function AdminBookingsPage() {
                 return (
                   <>
                     {delayedBookings.length > 0 && (
-                      <div className="rounded-lg bg-red-50 p-4 border border-red-200">
-                        <p className="text-sm font-semibold text-red-700 mb-2">
+                      <div className="rounded-lg bg-red-500/10 p-4 border border-red-500/20">
+                        <p className="text-sm font-semibold text-red-400 mb-2">
                           🔺 Slots Available - Users Delayed ({delayedBookings.length})
                         </p>
-                        <ul className="text-xs text-red-600 space-y-1">
+                        <ul className="text-xs text-red-400 space-y-1">
                           {delayedBookings.map(b => {
                             const status = bookingArrivalStatuses[b._id];
                             return (
@@ -472,11 +472,11 @@ export default function AdminBookingsPage() {
                       </div>
                     )}
                     {urgentBookings.length > 0 && (
-                      <div className="rounded-lg bg-yellow-50 p-4 border border-yellow-200">
-                        <p className="text-sm font-semibold text-yellow-700 mb-2">
+                      <div className="rounded-lg bg-yellow-500/10 p-4 border border-yellow-500/20">
+                        <p className="text-sm font-semibold text-yellow-400 mb-2">
                           🟡 Slots Reserved Soon - Arriving in 15 mins ({urgentBookings.length})
                         </p>
-                        <ul className="text-xs text-yellow-600 space-y-1">
+                        <ul className="text-xs text-yellow-400 space-y-1">
                           {urgentBookings.map(b => {
                             const status = bookingArrivalStatuses[b._id];
                             return (

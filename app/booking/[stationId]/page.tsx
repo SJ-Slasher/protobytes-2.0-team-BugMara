@@ -328,8 +328,8 @@ export default function BookingPage({
             </h3>
 
             {availablePorts.length === 0 && (
-              <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-4">
-                <p className="text-sm text-amber-900">
+              <div className="mt-4 rounded-lg bg-amber-500/10 border border-amber-500/20 p-4">
+                <p className="text-sm text-amber-400">
                   No ports currently available. All charging ports are booked or under maintenance.
                 </p>
               </div>
@@ -342,9 +342,8 @@ export default function BookingPage({
                   const isAvailable = port.status === "available";
                   const isSelected = selectedPortId === portId;
                   const statusLabel = port.status === "reserved" ? "Reserved" :
-                                     port.status === "in-use" ? "In Use" :
+                                     port.status === "occupied" ? "Occupied" :
                                      port.status === "maintenance" ? "Maintenance" :
-                                     port.status === "disabled" ? "Disabled" :
                                      port.status;
 
                   return (
@@ -377,13 +376,13 @@ export default function BookingPage({
                           <div
                             className={cn(
                               "flex h-8 w-8 items-center justify-center rounded-lg",
-                              isAvailable ? "bg-green-100" : "bg-gray-200"
+                              isAvailable ? "bg-green-500/20" : "bg-muted"
                             )}
                           >
                             <Zap
                               className={cn(
                                 "h-4 w-4",
-                                isAvailable ? "text-green-600" : "text-gray-400"
+                                isAvailable ? "text-green-400" : "text-gray-400"
                               )}
                             />
                           </div>

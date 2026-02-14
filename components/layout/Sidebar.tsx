@@ -26,6 +26,7 @@ import {
   Building2,
   Menu,
   X,
+  UserPlus,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/stations", label: "My Stations", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: Calendar },
+  { href: "/admin/walk-in", label: "Walk-ins", icon: UserPlus },
   { href: "/admin/scan", label: "QR Scan", icon: QrCode },
 ];
 
@@ -49,6 +51,7 @@ const superAdminLinks = [
   { href: "/admin", label: "Analytics", icon: BarChart3 },
   { href: "/admin/stations", label: "All Stations", icon: Building2 },
   { href: "/admin/bookings", label: "Transactions", icon: CreditCard },
+  { href: "/admin/walk-in", label: "Walk-ins", icon: UserPlus },
   { href: "/admin/users", label: "User Management", icon: Users },
   { href: "/admin/scan", label: "QR Scan", icon: QrCode },
 ];
@@ -142,10 +145,9 @@ export function Sidebar() {
           {links.map((link) => {
             const Icon = link.icon;
             const isActive =
-              link.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(link.href) &&
-                  (link.href !== "/admin" || pathname === "/admin");
+              link.href === "/" || link.href === "/dashboard" || link.href === "/admin"
+                ? pathname === link.href
+                : pathname.startsWith(link.href);
             return (
               <Link
                 key={link.href}

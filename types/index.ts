@@ -59,6 +59,7 @@ export interface IBooking {
   estimatedDuration: number;
   endTime: string;
   status: "pending" | "confirmed" | "active" | "completed" | "cancelled" | "no-show";
+  source?: "online" | "walk-in-qr" | "walk-in-manual";
   qrCode?: string;
   userLocation?: {
     lat: number;
@@ -69,6 +70,13 @@ export interface IBooking {
     distanceKm: number;
     updatedAt: string;
   };
+  amountPaid?: number;
+  paymentMethod?: "khalti" | "cash" | "other";
+  customerName?: string;
+  customerPhone?: string;
+  vehicleNumber?: string;
+  vehicleType?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

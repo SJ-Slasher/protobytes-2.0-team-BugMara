@@ -53,7 +53,7 @@ export function Navbar() {
   if (isAuthPage) return null;
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-white/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export function Navbar() {
 
       {/* Mobile Nav */}
       {mobileOpen && (
-        <div className="border-t border-border bg-white px-4 py-3 md:hidden">
+        <div className="border-t border-border bg-background px-4 py-3 md:hidden">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;

@@ -14,27 +14,22 @@ function loadRawData(): unknown[] {
 }
 
 function parseStationFromFile(s: any, index: number) {
-  const ports = (s.plugs || []).map(
-    (plug: { plug: string; power: string; type: string }, pIndex: number) => ({
+  const connectorTypes = ["type2", "CCS2", "CHAdeMO"];
+  const powerOutputs = ["7.2Kw", "22Kw", "50Kw"];
+  const chargerTypes = ["AC", "AC", "DC"];
+
+  // Always create exactly 3 ports per station
+  const ports = Array.from({ length: 3 }, (_, pIndex) => {
+    const plug = s.plugs?.[pIndex] as { plug: string; power: string; type: string } | undefined;
+    return {
       _id: `file-${index}-${pIndex}`,
       portNumber: `P${index + 1}-${pIndex + 1}`,
-      connectorType: plug.plug,
-      powerOutput: plug.power || "N/A",
-      chargerType: plug.type || "N/A",
+      connectorType: plug?.plug || connectorTypes[pIndex],
+      powerOutput: plug?.power || powerOutputs[pIndex],
+      chargerType: plug?.type || chargerTypes[pIndex],
       status: "available" as const,
-    })
-  );
-
-  if (ports.length === 0) {
-    ports.push({
-      _id: `file-${index}-0`,
-      portNumber: `P${index + 1}-1`,
-      connectorType: "type2",
-      powerOutput: "7.2Kw",
-      chargerType: "AC",
-      status: "available" as const,
-    });
-  }
+    };
+  });
 
   return {
     _id: `station-${index}`,

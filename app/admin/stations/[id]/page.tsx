@@ -18,6 +18,9 @@ import {
   ToggleLeft,
   ToggleRight,
   CircleDot,
+  QrCode,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
@@ -308,7 +311,7 @@ export default function EditStationPage({
                   )}
                 />
                 {errors.name && (
-                  <p className="mt-1 text-xs text-red-600">
+                  <p className="mt-1 text-xs text-red-400">
                     {errors.name.message}
                   </p>
                 )}
@@ -331,7 +334,7 @@ export default function EditStationPage({
                     )}
                   />
                   {errors.address && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.address.message}
                     </p>
                   )}
@@ -350,7 +353,7 @@ export default function EditStationPage({
                     )}
                   />
                   {errors.city && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.city.message}
                     </p>
                   )}
@@ -398,7 +401,7 @@ export default function EditStationPage({
                     )}
                   />
                   {errors.lat && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.lat.message}
                     </p>
                   )}
@@ -422,7 +425,7 @@ export default function EditStationPage({
                     )}
                   />
                   {errors.lng && (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-red-400">
                       {errors.lng.message}
                     </p>
                   )}
@@ -469,7 +472,7 @@ export default function EditStationPage({
                       <button
                         type="button"
                         onClick={() => remove(index)}
-                        className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
+                        className="rounded p-1 text-red-500 transition-colors hover:bg-red-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -645,6 +648,72 @@ export default function EditStationPage({
             </div>
           )}
 
+          {/* Walk-in QR Codes */}
+          {station && station.chargingPorts && station.chargingPorts.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <h2 className="flex items-center gap-2 font-semibold text-card-foreground">
+                <QrCode className="h-5 w-5 text-primary" />
+                Walk-in QR Codes
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Print these QR codes and place them at each charging port. Walk-in customers can scan to self-check-in.
+              </p>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {station.chargingPorts.map((port) => {
+                  const portIdStr = String(port._id || port.portNumber);
+                  const checkInUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/walk-in/${stationId}/${portIdStr}`;
+                  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(checkInUrl)}&bgcolor=1a1a2e&color=ffffff`;
+
+                  return (
+                    <div
+                      key={portIdStr}
+                      className="flex flex-col items-center rounded-lg border border-border p-4 text-center"
+                    >
+                      <div className="mb-3 rounded-lg bg-white p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={qrApiUrl}
+                          alt={`QR Code for Port ${port.portNumber}`}
+                          width={160}
+                          height={160}
+                          className="h-40 w-40"
+                        />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        Port {port.portNumber}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {port.connectorType} &middot; {port.powerOutput}
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <a
+                          href={qrApiUrl}
+                          download={`qr-port-${port.portNumber}.png`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                        >
+                          <Download className="h-3 w-3" />
+                          Download
+                        </a>
+                        <a
+                          href={checkInUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Preview
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Pricing */}
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="flex items-center gap-2 font-semibold text-card-foreground">
@@ -729,7 +798,7 @@ export default function EditStationPage({
 
           {/* Error */}
           {error && (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-400">
               {error}
             </div>
           )}

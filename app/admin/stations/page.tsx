@@ -185,7 +185,7 @@ export default function AdminStationsPage() {
                       </td>
                       <td className="hidden px-4 py-4 md:table-cell">
                         <span className="text-sm text-muted-foreground">
-                          <span className="font-medium text-green-600">
+                          <span className="font-medium text-green-400">
                             {availablePorts}
                           </span>
                           /{totalPorts}
@@ -202,7 +202,7 @@ export default function AdminStationsPage() {
                           {togglingId === station._id ? (
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                           ) : station.isActive ? (
-                            <ToggleRight className="h-6 w-6 text-green-600" />
+                            <ToggleRight className="h-6 w-6 text-green-400" />
                           ) : (
                             <ToggleLeft className="h-6 w-6 text-gray-400" />
                           )}
@@ -210,7 +210,7 @@ export default function AdminStationsPage() {
                             className={cn(
                               "text-xs font-medium",
                               station.isActive
-                                ? "text-green-600"
+                                ? "text-green-400"
                                 : "text-gray-400"
                             )}
                           >
@@ -230,7 +230,7 @@ export default function AdminStationsPage() {
                           <button
                             onClick={() => deleteStation(station._id)}
                             disabled={deletingId === station._id}
-                            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
                             title="Delete"
                           >
                             {deletingId === station._id ? (

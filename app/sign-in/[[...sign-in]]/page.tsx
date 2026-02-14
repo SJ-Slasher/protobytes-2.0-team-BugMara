@@ -1,49 +1,9 @@
 "use client";
 
 import { SignIn } from "@clerk/nextjs";
-import { useState } from "react";
-import { User, Building2, ShieldCheck, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-type SignInRole = "user" | "admin" | "superadmin";
-
-const roles = [
-  {
-    id: "user" as SignInRole,
-    label: "User",
-    description: "EV driver",
-    icon: User,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    activeBorder: "border-blue-500 ring-blue-500/20",
-  },
-  {
-    id: "admin" as SignInRole,
-    label: "Station Admin",
-    description: "Station owner",
-    icon: Building2,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    activeBorder: "border-amber-500 ring-amber-500/20",
-  },
-  {
-    id: "superadmin" as SignInRole,
-    label: "Super Admin",
-    description: "Platform admin",
-    icon: ShieldCheck,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    activeBorder: "border-purple-500 ring-purple-500/20",
-  },
-];
+import { Zap } from "lucide-react";
 
 export default function SignInPage() {
-  const [selectedRole, setSelectedRole] = useState<SignInRole>("user");
-
-  // Route through auto-create so MongoDB user is ensured to exist,
-  // and redirect is based on the actual DB role (not just the UI selector)
-  const redirectUrl = `/api/users?autoCreate=true&role=${selectedRole}`;
-
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
@@ -57,35 +17,8 @@ export default function SignInPage() {
           </p>
         </div>
 
-        {/* Role selector tabs */}
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          {roles.map((role) => {
-            const Icon = role.icon;
-            const isActive = selectedRole === role.id;
-
-            return (
-              <button
-                key={role.id}
-                onClick={() => setSelectedRole(role.id)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all",
-                  isActive
-                    ? `${role.activeBorder} bg-card shadow-sm ring-2`
-                    : "border-border hover:border-border/80"
-                )}
-              >
-                <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", role.bg)}>
-                  <Icon className={cn("h-4 w-4", role.color)} />
-                </div>
-                <span className="text-xs font-semibold text-foreground">{role.label}</span>
-                <span className="text-[10px] text-muted-foreground">{role.description}</span>
-              </button>
-            );
-          })}
-        </div>
-
         <SignIn
-          forceRedirectUrl={redirectUrl}
+          forceRedirectUrl="/api/users?autoCreate=true&role=user"
           appearance={{
             elements: {
               rootBox: "w-full",

@@ -96,22 +96,22 @@ export function getAmenityIcon(amenity: string): string {
 
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    available: "text-green-600 bg-green-50",
-    occupied: "text-red-600 bg-red-50",
-    reserved: "text-yellow-600 bg-yellow-50",
-    maintenance: "text-gray-600 bg-gray-50",
+    available: "text-emerald-400 bg-emerald-500/10",
+    occupied: "text-red-400 bg-red-500/10",
+    reserved: "text-yellow-400 bg-yellow-500/10",
+    maintenance: "text-slate-400 bg-slate-500/10",
   };
-  return colors[status] || "text-gray-600 bg-gray-50";
+  return colors[status] || "text-slate-400 bg-slate-500/10";
 }
 
 export function getBookingStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    pending: "text-yellow-600 bg-yellow-50",
-    confirmed: "text-blue-600 bg-blue-50",
-    active: "text-green-600 bg-green-50",
-    completed: "text-gray-600 bg-gray-50",
-    cancelled: "text-red-600 bg-red-50",
-    "no-show": "text-orange-600 bg-orange-50",
+    pending: "text-yellow-400 bg-yellow-500/10",
+    confirmed: "text-blue-400 bg-blue-500/10",
+    active: "text-emerald-400 bg-emerald-500/10",
+    completed: "text-slate-400 bg-slate-500/10",
+    cancelled: "text-red-400 bg-red-500/10",
+    "no-show": "text-orange-400 bg-orange-500/10",
   };
-  return colors[status] || "text-gray-600 bg-gray-50";
+  return colors[status] || "text-slate-400 bg-slate-500/10";
 }
