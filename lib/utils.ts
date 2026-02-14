@@ -59,7 +59,7 @@ export function pointToRouteDistance(
 }
 
 export function formatPrice(amount: number): string {
-  return `Rs. ${amount.toLocaleString("en-NP")}`;
+  return `Rs. ${(amount ?? 0).toLocaleString("en-NP")}`;
 }
 
 export function formatDuration(minutes: number): string {

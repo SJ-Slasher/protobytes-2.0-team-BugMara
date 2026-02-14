@@ -89,6 +89,7 @@ export async function GET(req: Request) {
           $group: {
             _id: "$stationId",
             bookingCount: { $sum: 1 },
+            revenue: { $sum: { $ifNull: ["$amountPaid", 0] } },
           },
         },
         { $sort: { bookingCount: -1 } },
