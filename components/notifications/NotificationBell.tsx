@@ -32,7 +32,22 @@ export function NotificationBell() {
     useNotifications();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const router = useRouter();
+
+  // Calculate panel position when opened
+  useEffect(() => {
+    if (!open || !bellRef.current) return;
+    const rect = bellRef.current.getBoundingClientRect();
+    // Open to the right of the bell, aligned at the bottom
+    setPanelStyle({
+      position: "fixed",
+      left: rect.right + 8,
+      bottom: window.innerHeight - rect.bottom,
+      zIndex: 100,
+    });
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -70,6 +85,7 @@ export function NotificationBell() {
     <div className="relative" ref={panelRef}>
       {/* Bell button */}
       <button
+        ref={bellRef}
         onClick={() => setOpen(!open)}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
         aria-label="Notifications"
@@ -89,9 +105,9 @@ export function NotificationBell() {
         />
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — fixed position to the right of the bell */}
       {open && (
-        <div className="absolute left-full top-0 ml-2 z-50 w-80 rounded-xl border border-border/50 bg-card shadow-2xl lg:left-auto lg:right-0 lg:top-full lg:mt-2 lg:ml-0">
+        <div className="w-80 rounded-xl border border-border/50 bg-card shadow-2xl" style={panelStyle}>
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
             <h3 className="text-sm font-semibold text-foreground">
